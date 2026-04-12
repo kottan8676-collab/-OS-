@@ -891,30 +891,30 @@ function KnowledgeCard({entry,onDelete,onJumpToInput,onUpdateUserMissing,onMoveT
 
 {/* 表示エリア */}
             <div style={{marginTop:10}}>
-              {/* 【修正】画像URLがあれば常にカードに表示 */}
+              {/* 【修正】画像があれば文字より先に、まず画像本体を表示 */}
               {entry.fileUrl && (entry.fileCategory === 'image' || entry.fileName.match(/\.(jpg|jpeg|png|gif|webp)$/i)) && (
                 <div style={{marginBottom: 12}}>
                   <img 
                     src={entry.fileUrl} 
                     alt="添付画像" 
                     style={{maxWidth: '100%', maxHeight: '400px', borderRadius: '8px', border: '1px solid var(--border)', display:'block'}} 
-                    onError={(e) => e.target.style.display = 'none'} // 万が一読み込めない場合は隠す
                   />
                 </div>
               )}
               
               <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
-                {/* メインボタン：ファイルがある場合は「開く」、ない場合は「詳細」 */}
+                {/* 【修正】ファイルURLがあれば、画像・Wordに関わらず「開く」ボタンを表示 */}
                 {entry.fileUrl ? (
                   <a href={entry.fileUrl} target="_blank" rel="noopener noreferrer"
                     style={{background:'var(--gold)', color:'var(--black)', fontSize:12, fontWeight:'bold', padding:'6px 14px', borderRadius:6, textDecoration:'none', display:'inline-flex', alignItems:'center', gap:5}}>
-                    {entry.fileCategory === 'image' ? '🖼️ 画像を全画面で開く' : '📂 元ファイル(Word/PDF等)を開く'}
+                    {entry.fileCategory === 'image' ? '🖼️ フルサイズで開く' : '📂 元ファイル(Word/PDF等)を開く'}
                   </a>
                 ) : null}
 
+                {/* 詳細表示の切り替えボタン */}
                 <button onClick={()=>setShowOrig(!showOrig)}
                   style={{background:'none',border:'none',color:'var(--text2)',fontSize:11,padding:0,cursor:'pointer'}}>
-                  {showOrig?'▲ 詳細を隠す':'▼ 詳細を確認'}
+                  {showOrig?'▲ 詳細を閉じる':'▼ 詳細を確認'}
                 </button>
 
                 {/* カテゴリタグ */}
@@ -927,17 +927,17 @@ function KnowledgeCard({entry,onDelete,onJumpToInput,onUpdateUserMissing,onMoveT
 
               {showOrig && (
                 <div style={{marginTop:10, paddingTop:10, borderTop:'1px solid var(--border)'}}>
-                  {/* 【追加】詳細の中にもバックアップとしてリンクを設置 */}
+                  {/* 詳細内にも直リンクを表示（Word等に確実に飛べるようにする） */}
                   {entry.fileUrl && (
                     <div style={{marginBottom: 10}}>
-                      <a href={entry.fileUrl} target="_blank" rel="noopener noreferrer" style={{color:'var(--gold)', fontSize:11}}>
-                        📎 直リンク: {entry.fileName || '添付ファイル'}
+                      <a href={entry.fileUrl} target="_blank" rel="noopener noreferrer" style={{color:'var(--gold)', fontSize:12, textDecoration:'underline'}}>
+                        🔗 元ファイルへの直接アクセス: {entry.fileName}
                       </a>
                     </div>
                   )}
 
-                  {/* テキストコンテンツの表示 */}
-                  {entry.content && (
+                  {/* テキストコンテンツがある場合（AI解析したWordの文章など）のみ表示 */}
+                  {entry.content && entry.content.length > 0 && !entry.content.startsWith('[画像') && (
                     <div style={{fontSize:11, color:'var(--text2)', whiteSpace:'pre-wrap', background:'rgba(0,0,0,0.3)', padding:'8px', borderRadius:'6px', marginBottom:'12px', maxHeight:'200px', overflowY:'auto'}}>
                       {entry.content}
                     </div>
@@ -1609,25 +1609,30 @@ unsubs.push(
         } catch(e) { console.warn("Storage upload failed", e); }
       }
 
-     // ★ チェックボックスがOFF（解析しない）の場合の「直接登録」処理
+     // ★ 直接登録（解析なし）の場合のロジック
       if (!useAiForFile) {
-        const titleToUse=(fileData.name||'無題ファイル').replace(/\.[^/.]+$/,'');
-        const id=String(Date.now());
-        const entry={
-          id,createdAt:new Date().toISOString(),project:currentProject,folder:'未分類',
-          title:titleToUse,
+        const titleToUse = (fileData.name || '無題ファイル').replace(/\.[^/.]+$/,'');
+        const id = String(Date.now());
+        const entry = {
+          id, createdAt: new Date().toISOString(), project: currentProject, folder: '未分類',
+          title: titleToUse,
           summary: fileData.category === 'image' ? '（直接登録された画像）' : '（直接登録されたファイル）',
-          inputType:'new',
-          improvedPoint:'',missing:[],userMissing:[],comments:[],encouragement:'',aiInsight:'',
-          subsidies:[],references:[],papers:[],sites:[],
-          // 画像の場合は文字情報を入れず、ファイルの場合は空にする（カード側でリンクを表示するため）
-          content: fileData.category === 'image' ? '' : '', 
-          relatedEntryId:jumpInfo?.entryId||null,
-          fileCategory:fileData.category||'text',
-          fileName:fileData.name||'',
-          fileUrl: fileUrl, // ここにStorageのURLが入る
-          objectUrl:null,editorName:userName
+          inputType: 'new',
+          improvedPoint: '', missing: [], userMissing: [], comments: [], encouragement: '', aiInsight: '',
+          subsidies: [], references: [], papers: [], sites: [],
+          // 画像の場合は文字を表示させないよう空にする
+          content: fileData.category === 'image' ? '' : (fileData.content || ''),
+          relatedEntryId: jumpInfo?.entryId || null,
+          fileCategory: fileData.category || 'text',
+          fileName: fileData.name || '',
+          fileUrl: fileUrl, // ★ ここにStorageのURLが正しく入っていることを確認
+          objectUrl: null, editorName: userName
         };
+        saveEntry(entry);
+        setJumpInfo(null);
+        setLoading(false);
+        return; 
+      }
         saveEntry(entry);
         setJumpInfo(null);
         setLoading(false);
