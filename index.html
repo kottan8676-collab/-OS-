@@ -889,8 +889,23 @@ function KnowledgeCard({entry,onDelete,onJumpToInput,onUpdateUserMissing,onMoveT
               )}
             </div>
 
-{/* --- ここから差し替え --- */}
-           {/* --- 表示エリア開始 --- */}
+const extractPdfImages = async (arrayBuffer) => {
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const images = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const viewport = page.getViewport({ scale: 1.5 });
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    canvas.height = viewport.height;
+    canvas.width = viewport.width;
+    await page.render({ canvasContext: context, viewport }).promise;
+    images.push(canvas.toDataURL('image/jpeg', 0.8).split(',')[1]);
+  }
+  return images;
+};
+    {/* --- ここから差し替え --- */}
+           {/* --- const handleFile = async (f開始 --- */}
             <div style={{marginTop:10}}>
               {/* 画像があれば表示 */}
               {entry.fileUrl && (entry.fileCategory === 'image' || (entry.fileName && entry.fileName.match(/\.(jpg|jpeg|png|gif|webp)$/i))) && (
@@ -969,7 +984,7 @@ function KnowledgeCard({entry,onDelete,onJumpToInput,onUpdateUserMissing,onMoveT
           </div>
         )}
       </div>
-    </>
+    </div> // ← ここがカード全体の閉じタグです
   );
 }
 
