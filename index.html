@@ -1566,30 +1566,21 @@ unsubs.push(
     }catch(e){setError('エラー: '+e.message);}
     finally{setLoading(false);}
   };
+ // ★ ここに async を追加
   const handleDirectSave = async () => {
     if(!inputText.trim()){setError('テキストを入力してください');return;}
     setLoading(true);setError('');
     try {
       const id=String(Date.now());
-      // タイトルの作成
       const title = inputText.substring(0, 15) + (inputText.length > 15 ? '...' : '');
-      
       const entry={
         id,createdAt:new Date().toISOString(),project:currentProject,folder:'未分類',
-        title:title,
-        summary: '（直接登録）', 
-        inputType:'new',
-        improvedPoint:'',missing:[],userMissing:[],comments:[],encouragement:'',aiInsight:'',
-        subsidies:[],references:[],papers:[],sites:[],
-        content:inputText,
-        relatedEntryId:jumpInfo?.entryId||null,
-        // ここから下が重要：ファイル情報を正しくセット
-        fileCategory: 'text', 
-        fileName: '',
-        fileUrl: null, 
-        objectUrl:null,editorName:userName
+        title:title, summary: '（直接入力の登録）',
+        content:inputText, fileCategory:'text', fileName:'', fileUrl:null,
+        missing:[], subsidies:[], references:[], papers:[], sites:[], comments:[], userMissing:[], editorName:userName
       };
-      saveEntry(entry);
+      // もし saveEntry が非同期なら await saveEntry(entry) にして、関数の頭に async をつけます
+      saveEntry(entry); 
       setInputText('');setJumpInfo(null);
     } catch(e) { setError('エラー: '+e.message); }
     finally { setLoading(false); }
