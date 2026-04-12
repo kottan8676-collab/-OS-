@@ -1293,6 +1293,7 @@ function App(){
   const[showCompleted,setShowCompleted]=useState(false);
   const[newFolderName,setNewFolderName]=useState('');
   const[showAddFolder,setShowAddFolder]=useState(false);
+  const[useAiForFile, setUseAiForFile]=useState(true);
   const textareaRef=useRef(null);
   const cursorUpdateRef=useRef(null);
   const userName=localStorage.getItem('kos_userName')||'名無し';
@@ -1563,8 +1564,9 @@ unsubs.push(
     finally { setLoading(false); }
   };
 
-  const handleFile=async(fileData)=>{
-    if(!apiKey){setShowApiModal(true);return;}
+ const handleFile=async(fileData)=>{
+    // ★ AIを使う設定の時だけAPIキーをチェックする
+    if(useAiForFile && !apiKey){setShowApiModal(true);return;}
     setLoading(true);setError('');
     try{
       let ai;
@@ -1577,6 +1579,29 @@ unsubs.push(
           await fileRef.put(fileData.rawFile);
           fileUrl = await fileRef.getDownloadURL();
         } catch(e) { console.warn("Storage upload failed", e); }
+      }
+
+      // ★ チェックボックスがOFF（解析しない）の場合の「直接登録」処理
+      if (!useAiForFile) {
+        const titleToUse=(fileData.name||'無題ファイル').replace(/\.[^/.]+$/,'');
+        const id=String(Date.now());
+        const entry={
+          id,createdAt:new Date().toISOString(),project:currentProject,folder:'未分類',
+          title:titleToUse,
+          summary:'（AI解析なしの直接登録）',inputType:'new',
+          improvedPoint:'',missing:[],userMissing:[],comments:[],encouragement:'',aiInsight:'',
+          subsidies:[],references:[],papers:[],sites:[],
+          content:fileData.content||('[画像: '+fileData.name+']'),
+          relatedEntryId:jumpInfo?.entryId||null,
+          fileCategory:fileData.category||'text',
+          fileName:fileData.name||'',
+          fileUrl: fileUrl,
+          objectUrl:null,editorName:userName
+        };
+        saveEntry(entry);
+        setJumpInfo(null);
+        setLoading(false);
+        return; // ここで処理を終了
       }
 
       if(fileData.category === 'pdf'){
@@ -1826,7 +1851,13 @@ unsubs.push(
                 </button>
               </div>
               <div>
-                <label style={{fontSize:11,color:'var(--text3)',display:'block',marginBottom:5}}>ファイル入力（複数可）</label>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:5}}>
+                  <label style={{fontSize:11,color:'var(--text3)'}}>ファイル入力（複数可）</label>
+                  <label style={{fontSize:11,color:'var(--gold)',display:'flex',alignItems:'center',gap:4,cursor:'pointer'}}>
+                    <input type="checkbox" checked={useAiForFile} onChange={e=>setUseAiForFile(e.target.checked)} />
+                    AIで自動解析する
+                  </label>
+                </div>
                 <FileUploadZone onFile={handleFile}/>
               </div>
               {error&&(
