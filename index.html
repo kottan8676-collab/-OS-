@@ -536,7 +536,9 @@ function FileUploadZone({onFile}){
     if(category==='image'){
       await new Promise((res)=>{
         const reader=new FileReader();
-        reader.onload=e=>{try{const b64=e.target.result.split(',')[1];if(!b64)throw new Error('画像読み込み失敗');onFile({type:'image',base64:b64,mimeType:f.type,name:f.name,category});}catch(err){alert(f.name+': '+err.message);}res();};
+        reader.onload=e=>{try{const b64=e.target.result.split(',')[1];if(!b64)throw new Error('画像読み込み失敗');
+        // rawFile: f を追加してStorageに保存できるようにする
+        onFile({type:'image',base64:b64,mimeType:f.type,name:f.name,category, rawFile:f});}catch(err){alert(f.name+': '+err.message);}res();};
         reader.onerror=()=>{alert(f.name+': 読み込み失敗');res();};reader.readAsDataURL(f);
       });return;
     }
@@ -887,17 +889,24 @@ function KnowledgeCard({entry,onDelete,onJumpToInput,onUpdateUserMissing,onMoveT
               )}
             </div>
 
-            {/* 原文リンク表示 */}
+{/* 原文リンク・画像表示 */}
             <div style={{marginTop:10}}>
+              {/* 画像の場合はインラインで表示 */}
+              {entry.fileCategory === 'image' && entry.fileUrl && (
+                <div style={{marginBottom: 8}}>
+                  <img src={entry.fileUrl} alt="添付画像" style={{maxWidth: '100%', maxHeight: '400px', borderRadius: '8px', border: '1px solid var(--border)'}} />
+                </div>
+              )}
+              
               <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
-                {entry.fileUrl ? (
+                {entry.fileCategory !== 'image' && entry.fileUrl ? (
                   <a href={entry.fileUrl} target="_blank" rel="noopener noreferrer"
                     style={{background:'rgba(248,224,112,0.15)',border:'1px solid rgba(248,224,112,0.4)',color:'var(--gold)',fontSize:11,padding:'4px 10px',borderRadius:6,textDecoration:'none'}}>
                     📄 元ファイルを開く
                   </a>
                 ) : (
                   <button onClick={()=>setShowOrig(!showOrig)}
-                    style={{background:'none',border:'none',color:'var(--text2)',fontSize:11,padding:0,cursor:'pointer'}}>{showOrig?'▲ 原文を隠す':'▼ 原文を表示'}</button>
+                    style={{background:'none',border:'none',color:'var(--text2)',fontSize:11,padding:0,cursor:'pointer'}}>{showOrig?'▲ 詳細を隠す':'▼ 詳細・原文を表示'}</button>
                 )}
                 {entry.fileCategory&&entry.fileCategory!=='text'&&(
                   <span style={{display:'inline-flex',alignItems:'center',gap:3,padding:'2px 8px',background:getFileColor(entry.fileCategory)+'20',border:'1px solid '+getFileColor(entry.fileCategory)+'50',borderRadius:10,fontSize:10,color:getFileColor(entry.fileCategory)}}>
@@ -905,16 +914,18 @@ function KnowledgeCard({entry,onDelete,onJumpToInput,onUpdateUserMissing,onMoveT
                   </span>
                 )}
               </div>
+
               {showOrig && (
-                <div style={{marginTop:10}}>
-                  {/* リマインダー設定 */}
-                  <div style={{paddingTop:10,borderTop:'1px solid var(--border)'}}>
-                    <div style={{fontSize:10,color:'var(--text3)',marginBottom:4}}>⏰ リマインダー</div>
-                    <input type="datetime-local" value={entry.reminder||''} onChange={e=>onUpdate(entry.id,{reminder:e.target.value})}
-                      style={{width:'100%',background:'var(--dark4)',border:'1px solid var(--border)',borderRadius:4,color:'var(--text)',fontSize:11,padding:4}}/>
-                  </div>
+                <div style={{marginTop:10, paddingTop:10, borderTop:'1px solid var(--border)'}}>
+                  {/* 原文テキストの表示 */}
+                  {entry.content && !entry.content.startsWith('[画像') && (
+                    <div style={{fontSize:11, color:'var(--text2)', whiteSpace:'pre-wrap', background:'rgba(0,0,0,0.3)', padding:'8px', borderRadius:'6px', marginBottom:'12px', maxHeight:'200px', overflowY:'auto'}}>
+                      {entry.content}
+                    </div>
+                  )}
+
                   {/* フォルダ・プロジェクト移動セクション */}
-                  <div style={{marginTop:12,paddingTop:10,borderTop:'1px solid var(--border)',display:'flex',flexDirection:'column',gap:8}}>
+                  <div style={{display:'flex',flexDirection:'column',gap:8}}>
                     {folders && folders[entry.project] && folders[entry.project].length > 1 && (
                       <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
                         <span style={{fontSize:10,color:'var(--text3)'}}>📂 フォルダ:</span>
@@ -940,7 +951,6 @@ function KnowledgeCard({entry,onDelete,onJumpToInput,onUpdateUserMissing,onMoveT
                   </div>
                 </div>
               )}
-
             </div>
           </div>
         )}
@@ -1495,7 +1505,8 @@ unsubs.push(
       const id=String(Date.now());
       const entry={
         id,createdAt:new Date().toISOString(),project:currentProject,folder:'未分類',
-        title:ai.title,summary:ai.summary,inputType:ai.inputType||'new',
+        title:titleToUse,
+        summary:ai.summary,inputType:ai.inputType||'new',
         improvedPoint:ai.improvedPoint||'',
         missing:(ai.missing||[]).map(m=>typeof m==='string'?{id:'m'+Math.random(),text:m}:m),
         userMissing:[],comments:[],
@@ -1505,8 +1516,12 @@ unsubs.push(
         references:ai.references||[],
         papers:ai.papers||[],
         sites:ai.sites||[],
-        content:inputText,relatedEntryId:jumpInfo?.entryId||null,
-        fileCategory:'text',fileName:'',objectUrl:null,editorName:userName
+        content:fileData.content||('[画像: '+fileData.name+']'),
+        relatedEntryId:jumpInfo?.entryId||null,
+        fileCategory:fileData.category||'text',
+        fileName:fileData.name||'',
+        fileUrl: fileUrl, // ★ StorageのURLを保存
+        objectUrl:null,editorName:userName
       };
       saveEntry(entry);
       // AIが生成するタスクにrelatedEntryIdをセット
@@ -1527,6 +1542,25 @@ unsubs.push(
       setInputText('');setJumpInfo(null);
     }catch(e){setError('エラー: '+e.message);}
     finally{setLoading(false);}
+  };
+  const handleDirectSave = async () => {
+    if(!inputText.trim()){setError('テキストを入力してください');return;}
+    setLoading(true);setError('');
+    try {
+      const id=String(Date.now());
+      const title = inputText.substring(0, 15) + (inputText.length > 15 ? '...' : '');
+      const entry={
+        id,createdAt:new Date().toISOString(),project:currentProject,folder:'未分類',
+        title:title,summary:'（AI解析なしの直接登録）',inputType:'new',
+        improvedPoint:'',missing:[],userMissing:[],comments:[],encouragement:'',aiInsight:'',
+        subsidies:[],references:[],papers:[],sites:[],
+        content:inputText,relatedEntryId:jumpInfo?.entryId||null,
+        fileCategory:'text',fileName:'',objectUrl:null,editorName:userName, fileUrl:null
+      };
+      saveEntry(entry);
+      setInputText('');setJumpInfo(null);
+    } catch(e) { setError('エラー: '+e.message); }
+    finally { setLoading(false); }
   };
 
   const handleFile=async(fileData)=>{
@@ -1781,10 +1815,16 @@ unsubs.push(
                   placeholder="知識・メモ・情報を入力..."
                   style={{width:'100%',padding:'8px 10px',background:'var(--dark3)',border:'1px solid var(--border)',borderRadius:7,color:'var(--text)',fontSize:12,lineHeight:'1.75',resize:'vertical',outline:'none'}}/>
               </div>
-              <button onClick={handleSubmit} disabled={loading}
-                style={{width:'100%',padding:'9px',background:loading?'rgba(248,224,112,0.08)':'rgba(248,224,112,0.18)',border:'1px solid rgba(248,224,112,0.55)',borderRadius:8,color:loading?'var(--text3)':'var(--gold)',fontSize:13,fontWeight:600,transition:'all 0.2s'}}>
-                {loading?'⏳ AI解析中...':'✨ 解析して登録'}
-              </button>
+              <div style={{display:'flex', gap: 8}}>
+                <button onClick={handleSubmit} disabled={loading} title="AIで解析してナレッジ化"
+                  style={{flex: 1, padding:'9px',background:loading?'rgba(248,224,112,0.08)':'rgba(248,224,112,0.18)',border:'1px solid rgba(248,224,112,0.55)',borderRadius:8,color:loading?'var(--text3)':'var(--gold)',fontSize:13,fontWeight:600,transition:'all 0.2s'}}>
+                  {loading?'⏳...':'✨ 解析して登録'}
+                </button>
+                <button onClick={handleDirectSave} disabled={loading} title="解析せずにそのまま登録"
+                  style={{padding:'9px 14px',background:'rgba(144,192,255,0.1)',border:'1px solid rgba(144,192,255,0.4)',borderRadius:8,color:'#90C0FF',fontSize:13,fontWeight:600,transition:'all 0.2s'}}>
+                  📥 直接登録
+                </button>
+              </div>
               <div>
                 <label style={{fontSize:11,color:'var(--text3)',display:'block',marginBottom:5}}>ファイル入力（複数可）</label>
                 <FileUploadZone onFile={handleFile}/>
