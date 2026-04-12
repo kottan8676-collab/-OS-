@@ -892,16 +892,12 @@ function KnowledgeCard({entry,onDelete,onJumpToInput,onUpdateUserMissing,onMoveT
 {/* --- ここから差し替え --- */}
             {/* 表示エリア */}
             <div style={{marginTop:10}}>
-              {/* 【1】画像があれば文字より先に、まず画像本体を表示 */}
-              {entry.fileUrl && (entry.fileCategory === 'image' || (entry.fileName && entry.fileName.match(/\.(jpg|jpeg|png|gif|webp)$/i))) && (
-                <div style={{marginBottom: 12}}>
-                  <img 
-                    src={entry.fileUrl} 
-                    alt="添付画像" 
-                    style={{maxWidth: '100%', maxHeight: '400px', borderRadius: '8px', border: '1px solid var(--border)', display:'block'}} 
-                  />
-                </div>
-              )}
+              {/* 画像があれば表示 */}
+{entry.fileUrl && (entry.fileCategory === 'image' || entry.fileName.match(/\.(jpg|jpeg|png|gif|webp)$/i)) && (
+  <div style={{marginBottom: 12}}>
+    <img src={entry.fileUrl} style={{maxWidth: '100%', borderRadius: '8px'}} />
+  </div>
+)}
               
               <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
                 {/* 【2】ファイルURLがあれば、画像・Wordに関わらず目立つ「開く」ボタンを表示 */}
@@ -1586,74 +1582,108 @@ unsubs.push(
     finally { setLoading(false); }
   };
 
- // ★ ここに async があることを確認してください
-  const handleFile = async (fileData) => {
-    if(useAiForFile && !apiKey){setShowApiModal(true);return;}
-    setLoading(true);setError('');
-    try{
+ const handleFile = async (fileData) => {
+    // AI解析が必要な時だけAPIキーをチェック
+    if (useAiForFile && !apiKey) {
+      setShowApiModal(true);
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
       let ai;
       let fileUrl = null;
-      
-      // Storageにファイルをアップロード
-      if(fileData.rawFile && typeof storage !== 'undefined') {
+
+      // 1. Firebase StorageにファイルをアップロードしてURLを取得
+      if (fileData.rawFile && typeof storage !== 'undefined') {
         try {
           const fileRef = storage.ref(`uploads/${Date.now()}_${fileData.name}`);
           await fileRef.put(fileData.rawFile);
           fileUrl = await fileRef.getDownloadURL();
-        } catch(e) { console.warn("Storage upload failed", e); }
+        } catch (e) {
+          console.warn("Storage upload failed", e);
+        }
       }
 
-      // 直接登録（解析なし）の場合
+      // 2. 直接登録（AI解析なし）の場合の処理
       if (!useAiForFile) {
-        const titleToUse = (fileData.name || '無題ファイル').replace(/\.[^/.]+$/,'');
+        const titleToUse = (fileData.name || '無題ファイル').replace(/\.[^/.]+$/, '');
         const id = String(Date.now());
         const entry = {
-          id, createdAt: new Date().toISOString(), project: currentProject, folder: '未分類',
+          id,
+          createdAt: new Date().toISOString(),
+          project: currentProject,
+          folder: '未分類',
           title: titleToUse,
-          summary: fileData.category === 'image' ? '（直接登録画像）' : '（直接登録ファイル）',
+          summary: fileData.category === 'image' ? '（直接登録された画像）' : '（直接登録されたファイル）',
           inputType: 'new',
           improvedPoint: '', missing: [], userMissing: [], comments: [], encouragement: '', aiInsight: '',
           subsidies: [], references: [], papers: [], sites: [],
+          // 画像なら空、それ以外ならテキスト内容を保存
           content: fileData.category === 'image' ? '' : (fileData.content || ''),
           relatedEntryId: jumpInfo?.entryId || null,
           fileCategory: fileData.category || 'text',
           fileName: fileData.name || '',
-          fileUrl: fileUrl,
-          objectUrl: null, editorName: userName
+          fileUrl: fileUrl, // 取得したURLを確実に保存
+          objectUrl: null,
+          editorName: userName
         };
         saveEntry(entry);
         setJumpInfo(null);
         setLoading(false);
-        return; 
+        return; // ここで終了
       }
 
-      // AI解析を行う場合
-      if(fileData.category === 'pdf'){
-        // ★ エラーが出ていた箇所：ここでも await を使うので handleFile は async である必要があります
-        const arrBuf = await fileData.rawFile.arrayBuffer();
+      // 3. AI解析を行う場合の処理
+      if (fileData.category === 'pdf') {
+        const arrBuf = await fileData.rawFile.arrayBuffer(); // ここでエラーが出ていました
         const b64Images = await extractPdfImages(arrBuf);
         ai = await analyzeMultipleImages(apiKey, b64Images, currentProject, projectEntries, feedbacks, '未分類');
-      } else if(fileData.category === 'image' || fileData.type === 'image'){
+      } else if (fileData.category === 'image' || fileData.type === 'image') {
         ai = await analyzeImage(fileData.base64, fileData.mimeType);
       } else {
         ai = await analyzeContent(fileData.content, 'text');
       }
 
-      // ... (以降の entry 作成処理は前回と同じ) ...
-      const titleToUse = ai.title || (fileData.name||'').replace(/\.[^/.]+$/,'') || '無題';
+      // AI解析結果を保存
+      const titleToUse = ai.title || (fileData.name || '').replace(/\.[^/.]+$/, '') || '無題の解析';
+      const id = String(Date.now());
       const entry = {
-        id: String(Date.now()), createdAt: new Date().toISOString(), project: currentProject, folder: '未分類',
-        title: titleToUse, summary: ai.summary, content: fileData.content || '',
-        fileCategory: fileData.category || 'text', fileName: fileData.name || '', fileUrl: fileUrl,
-        missing:[], subsidies:[], references:[], papers:[], sites:[], comments:[], userMissing:[], editorName:userName
+        id,
+        createdAt: new Date().toISOString(),
+        project: currentProject,
+        folder: '未分類',
+        title: titleToUse,
+        summary: ai.summary,
+        inputType: ai.inputType || 'new',
+        improvedPoint: ai.improvedPoint || '',
+        missing: (ai.missing || []).map(m => typeof m === 'string' ? { id: 'm' + Math.random(), text: m } : m),
+        userMissing: [],
+        comments: [],
+        encouragement: ai.encouragement || '',
+        aiInsight: ai.aiInsight || '',
+        subsidies: ai.subsidies || [],
+        references: ai.references || [],
+        papers: ai.papers || [],
+        sites: ai.sites || [],
+        content: fileData.content || '',
+        relatedEntryId: jumpInfo?.entryId || null,
+        fileCategory: fileData.category || 'text',
+        fileName: fileData.name || '',
+        fileUrl: fileUrl,
+        objectUrl: null,
+        editorName: userName
       };
       saveEntry(entry);
       setJumpInfo(null);
 
-    } catch(e) { 
-      setError('エラー: ' + e.message); 
-    } finally { 
-      setLoading(false); 
+    } catch (e) {
+      setError('エラー: ' + e.message);
+      console.error(e);
+    } finally {
+      setLoading(false);
     }
   };
 
