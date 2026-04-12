@@ -1573,7 +1573,7 @@ unsubs.push(
     }catch(e){setError('エラー: '+e.message);}
     finally{setLoading(false);}
   };
-const handleFile = async (fileData) => { // ★ ここが重要！asyncを付ける
+const handleFile = async (fileData) => { // ★ ここに async を追加
     if (useAiForFile && !apiKey) {
       setShowApiModal(true);
       return;
@@ -1586,7 +1586,7 @@ const handleFile = async (fileData) => { // ★ ここが重要！asyncを付け
       let ai;
       let fileUrl = null;
 
-      // 1. ファイルアップロード
+      // 1. ファイルアップロード（Firebase Storage）
       if (fileData.rawFile && typeof storage !== 'undefined') {
         try {
           const fileRef = storage.ref(`uploads/${Date.now()}_${fileData.name}`);
@@ -1597,16 +1597,26 @@ const handleFile = async (fileData) => { // ★ ここが重要！asyncを付け
         }
       }
 
-      // 2. 直接登録
+      // 2. 「直接登録（AI解析なし）」の場合の処理
       if (!useAiForFile) {
         const titleToUse = (fileData.name || '無題ファイル').replace(/\.[^/.]+$/, '');
         const entry = {
-          id: String(Date.now()), createdAt: new Date().toISOString(), project: currentProject, folder: '未分類',
-          title: titleToUse, summary: fileData.category === 'image' ? '（直接登録画像）' : '（直接登録ファイル）',
+          id: String(Date.now()),
+          createdAt: new Date().toISOString(),
+          project: currentProject,
+          folder: '未分類',
+          title: titleToUse,
+          summary: fileData.category === 'image' ? '（直接登録画像）' : '（直接登録ファイル）',
+          inputType: 'new',
+          improvedPoint: '', missing: [], userMissing: [], comments: [], encouragement: '', aiInsight: '',
+          subsidies: [], references: [], papers: [], sites: [],
           content: fileData.category === 'image' ? '' : (fileData.content || ''),
-          fileCategory: fileData.category || 'text', fileName: fileData.name || '', fileUrl: fileUrl,
-          inputType: 'new', improvedPoint: '', missing: [], userMissing: [], comments: [], encouragement: '', aiInsight: '',
-          subsidies: [], references: [], papers: [], sites: [], relatedEntryId: jumpInfo?.entryId || null, objectUrl: null, editorName: userName
+          relatedEntryId: jumpInfo?.entryId || null,
+          fileCategory: fileData.category || 'text',
+          fileName: fileData.name || '',
+          fileUrl: fileUrl, // 保存したURLを渡す
+          objectUrl: null,
+          editorName: userName
         };
         saveEntry(entry);
         setJumpInfo(null);
@@ -1614,9 +1624,9 @@ const handleFile = async (fileData) => { // ★ ここが重要！asyncを付け
         return; 
       }
 
-      // 3. AI解析（ここでも await を使うので async が必須）
+      // 3. AI解析を行う場合の処理
       if (fileData.category === 'pdf') {
-        const arrBuf = await fileData.rawFile.arrayBuffer();
+        const arrBuf = await fileData.rawFile.arrayBuffer(); // ★ asyncがあればエラーになりません
         const b64Images = await extractPdfImages(arrBuf);
         ai = await analyzeMultipleImages(apiKey, b64Images, currentProject, projectEntries, feedbacks, '未分類');
       } else if (fileData.category === 'image' || fileData.type === 'image') {
@@ -1627,76 +1637,35 @@ const handleFile = async (fileData) => { // ★ ここが重要！asyncを付け
 
       // 4. 解析結果の保存
       const entry = {
-        id: String(Date.now()), createdAt: new Date().toISOString(), project: currentProject, folder: '未分類',
-        title: ai.title || (fileData.name||'').replace(/\.[^/.]+$/,''), summary: ai.summary,
-        content: fileData.content || '', fileCategory: fileData.category || 'text', fileName: fileData.name || '', fileUrl: fileUrl,
-        improvedPoint:ai.improvedPoint||'', missing:(ai.missing||[]).map(m=>typeof m==='string'?{id:'m'+Math.random(),text:m}:m),
-        userMissing:[], comments:[], encouragement:ai.encouragement||'', aiInsight:ai.aiInsight||'', subsidies:ai.subsidies||[],
-        references:ai.references||[], papers:ai.papers||[], sites:ai.sites||[], relatedEntryId:jumpInfo?.entryId||null, objectUrl:null, editorName:userName
+        id: String(Date.now()),
+        createdAt: new Date().toISOString(),
+        project: currentProject,
+        folder: '未分類',
+        title: ai.title || (fileData.name || '').replace(/\.[^/.]+$/, ''),
+        summary: ai.summary,
+        inputType: ai.inputType || 'new',
+        improvedPoint: ai.improvedPoint || '',
+        missing: (ai.missing || []).map(m => typeof m === 'string' ? { id: 'm' + Math.random(), text: m } : m),
+        userMissing: [], comments: [], encouragement: ai.encouragement || '', aiInsight: ai.aiInsight || '',
+        subsidies: ai.subsidies || [], references: ai.references || [], papers: ai.papers || [], sites: ai.sites || [],
+        content: fileData.content || '',
+        relatedEntryId: jumpInfo?.entryId || null,
+        fileCategory: fileData.category || 'text',
+        fileName: fileData.name || '',
+        fileUrl: fileUrl,
+        objectUrl: null,
+        editorName: userName
       };
       saveEntry(entry);
       setJumpInfo(null);
 
     } catch (e) {
       setError('エラー: ' + e.message);
+      console.error(e);
     } finally {
       setLoading(false);
     }
-  };
-
-      if(fileData.category === 'pdf'){
-        // PDFの場合は各ページを画像化して解析
-        const arrBuf = await fileData.rawFile.arrayBuffer();
-        const b64Images = await extractPdfImages(arrBuf);
-        ai = await analyzeMultipleImages(apiKey, b64Images, currentProject, projectEntries, feedbacks, '未分類');
-      } else if(fileData.type==='image'){
-        ai=await analyzeImage(apiKey,fileData.base64,fileData.mimeType,currentProject,projectEntries,feedbacks,'未分類');
-      }else{
-        ai=await analyzeText(apiKey,fileData.content,currentProject,projectEntries,feedbacks,'未分類');
-      }
-      const cost=calcCost(ai.inp||0,ai.out||0);
-      setTotalCost(prev=>+(prev+cost).toFixed(6));
-      const id=String(Date.now());
-      // ★ ファイルの場合はファイル名をtitleにセット
-      const titleToUse=(fileData.name||ai.title).replace(/\.[^/.]+$/,'');
-      const entry={
-        id,createdAt:new Date().toISOString(),project:currentProject,folder:'未分類',
-        title:titleToUse,
-        summary:ai.summary,inputType:ai.inputType||'new',
-        improvedPoint:ai.improvedPoint||'',
-        missing:(ai.missing||[]).map(m=>typeof m==='string'?{id:'m'+Math.random(),text:m}:m),
-        userMissing:[],comments:[],
-        encouragement:ai.encouragement||'',
-        aiInsight:ai.aiInsight||'',
-        subsidies:ai.subsidies||[],
-        references:ai.references||[],
-        papers:ai.papers||[],
-        sites:ai.sites||[],
-        content:fileData.content||('[画像: '+fileData.name+']'),
-        relatedEntryId:jumpInfo?.entryId||null,
-        fileCategory:fileData.category||'text',
-        fileName:fileData.name||'',objectUrl:null,editorName:userName
-      };
-      saveEntry(entry);
-      // AIが生成するタスクにrelatedEntryIdをセット
-      if(ai.todos&&ai.todos.length>0){
-        const downgrade={high:'medium',medium:'low',low:'low'};
-        todos.filter(t=>t.project===currentProject&&t.aiGenerated&&!t.done).forEach(t=>{
-          db.collection('todos').doc(String(t.id)).update({priority:downgrade[t.priority]||t.priority});
-        });
-        ai.todos.forEach((t,i)=>{
-          const tid=String(Date.now()+i+1);
-          saveTodo({
-            id:tid,text:t.text,priority:t.priority||'medium',
-            project:currentProject,done:false,aiGenerated:true,
-            assignee:'',relatedEntryId:id  // ★ 生成元の文書IDをセット
-          });
-        });
-      }
-      setJumpInfo(null);
-    }catch(e){setError('エラー: '+e.message);}
-    finally{setLoading(false);}
-  };
+  }; // ★ ここで handleFile 関数が終了
 
   const handleJumpToInput=(entry,missing)=>{
     setJumpInfo({entryId:entry.id,missingId:missing.id,missingText:missing.text});
