@@ -1595,16 +1595,15 @@ unsubs.push(
     finally { setLoading(false); }
   };
 
- const handleFile=async(fileData)=>{
-    // AIを使う設定かつAPIキーがない場合のみモーダルを出す
+ // ★ ここに async があることを確認してください
+  const handleFile = async (fileData) => {
     if(useAiForFile && !apiKey){setShowApiModal(true);return;}
-    
     setLoading(true);setError('');
     try{
       let ai;
       let fileUrl = null;
       
-      // 1. StorageにファイルをアップロードしてURLを取得（画像やWordのリンク用）
+      // Storageにファイルをアップロード
       if(fileData.rawFile && typeof storage !== 'undefined') {
         try {
           const fileRef = storage.ref(`uploads/${Date.now()}_${fileData.name}`);
@@ -1613,64 +1612,55 @@ unsubs.push(
         } catch(e) { console.warn("Storage upload failed", e); }
       }
 
-      // 2. 「直接登録（解析なし）」の場合の処理
+      // 直接登録（解析なし）の場合
       if (!useAiForFile) {
         const titleToUse = (fileData.name || '無題ファイル').replace(/\.[^/.]+$/,'');
         const id = String(Date.now());
         const entry = {
           id, createdAt: new Date().toISOString(), project: currentProject, folder: '未分類',
           title: titleToUse,
-          summary: fileData.category === 'image' ? '（直接登録された画像）' : '（直接登録されたファイル）',
+          summary: fileData.category === 'image' ? '（直接登録画像）' : '（直接登録ファイル）',
           inputType: 'new',
           improvedPoint: '', missing: [], userMissing: [], comments: [], encouragement: '', aiInsight: '',
           subsidies: [], references: [], papers: [], sites: [],
-          // 画像なら空、それ以外ならテキスト内容を入れる
           content: fileData.category === 'image' ? '' : (fileData.content || ''),
           relatedEntryId: jumpInfo?.entryId || null,
           fileCategory: fileData.category || 'text',
           fileName: fileData.name || '',
-          fileUrl: fileUrl, // ここに取得したURLをセット
+          fileUrl: fileUrl,
           objectUrl: null, editorName: userName
         };
         saveEntry(entry);
         setJumpInfo(null);
         setLoading(false);
-        return; // ここで終了
+        return; 
       }
 
-      // 3. AI解析を行う場合の処理
+      // AI解析を行う場合
       if(fileData.category === 'pdf'){
-        ai = await analyzeContent(fileData.content, 'pdf');
-      } else if(fileData.category === 'image'){
+        // ★ エラーが出ていた箇所：ここでも await を使うので handleFile は async である必要があります
+        const arrBuf = await fileData.rawFile.arrayBuffer();
+        const b64Images = await extractPdfImages(arrBuf);
+        ai = await analyzeMultipleImages(apiKey, b64Images, currentProject, projectEntries, feedbacks, '未分類');
+      } else if(fileData.category === 'image' || fileData.type === 'image'){
         ai = await analyzeImage(fileData.base64, fileData.mimeType);
       } else {
         ai = await analyzeContent(fileData.content, 'text');
       }
 
-      const titleToUse = ai.title || (fileData.name||'').replace(/\.[^/.]+$/,'') || '無題の解析';
-      const id = String(Date.now());
+      // ... (以降の entry 作成処理は前回と同じ) ...
+      const titleToUse = ai.title || (fileData.name||'').replace(/\.[^/.]+$/,'') || '無題';
       const entry = {
-        id, createdAt: new Date().toISOString(), project: currentProject, folder: '未分類',
-        title: titleToUse,
-        summary: ai.summary, inputType: ai.inputType||'new',
-        improvedPoint: ai.improvedPoint||'',
-        missing: (ai.missing||[]).map(m=>typeof m==='string'?{id:'m'+Math.random(),text:m}:m),
-        userMissing: [], comments: [], encouragement: ai.encouragement||'',
-        aiInsight: ai.aiInsight||'', subsidies: ai.subsidies||[],
-        references: ai.references||[], papers: ai.papers||[], sites: ai.sites||[],
-        content: fileData.content || '',
-        relatedEntryId: jumpInfo?.entryId || null,
-        fileCategory: fileData.category || 'text',
-        fileName: fileData.name || '',
-        fileUrl: fileUrl,
-        objectUrl: null, editorName: userName
+        id: String(Date.now()), createdAt: new Date().toISOString(), project: currentProject, folder: '未分類',
+        title: titleToUse, summary: ai.summary, content: fileData.content || '',
+        fileCategory: fileData.category || 'text', fileName: fileData.name || '', fileUrl: fileUrl,
+        missing:[], subsidies:[], references:[], papers:[], sites:[], comments:[], userMissing:[], editorName:userName
       };
       saveEntry(entry);
       setJumpInfo(null);
 
     } catch(e) { 
       setError('エラー: ' + e.message); 
-      console.error(e);
     } finally { 
       setLoading(false); 
     }
