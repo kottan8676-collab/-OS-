@@ -889,27 +889,23 @@ function KnowledgeCard({entry,onDelete,onJumpToInput,onUpdateUserMissing,onMoveT
               )}
             </div>
 
-{/* 表示エリア */}
-            <div style={{marginTop:10}}>
-              {/* 【修正】画像があれば文字より先に、まず画像本体を表示 */}
-              {entry.fileUrl && (entry.fileCategory === 'image' || entry.fileName.match(/\.(jpg|jpeg|png|gif|webp)$/i)) && (
-                <div style={{marginBottom: 12}}>
-                  <img 
-                    src={entry.fileUrl} 
-                    alt="添付画像" 
-                    style={{maxWidth: '100%', maxHeight: '400px', borderRadius: '8px', border: '1px solid var(--border)', display:'block'}} 
-                  />
-                </div>
-              )}
-              
-              <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
-                {/* 【修正】ファイルURLがあれば、画像・Wordに関わらず「開く」ボタンを表示 */}
-                {entry.fileUrl ? (
-                  <a href={entry.fileUrl} target="_blank" rel="noopener noreferrer"
-                    style={{background:'var(--gold)', color:'var(--black)', fontSize:12, fontWeight:'bold', padding:'6px 14px', borderRadius:6, textDecoration:'none', display:'inline-flex', alignItems:'center', gap:5}}>
-                    {entry.fileCategory === 'image' ? '🖼️ フルサイズで開く' : '📂 元ファイル(Word/PDF等)を開く'}
-                  </a>
-                ) : null}
+{/* KnowledgeCard内の表示エリア */}
+<div style={{marginTop:10}}>
+  {/* 画像があれば表示 */}
+  {entry.fileUrl && (entry.fileCategory === 'image' || entry.fileName.match(/\.(jpg|jpeg|png|gif|webp)$/i)) && (
+    <div style={{marginBottom: 12}}>
+      <img src={entry.fileUrl} style={{maxWidth:'100%', borderRadius:'8px', border:'1px solid var(--border)'}} />
+    </div>
+  )}
+
+  {/* ファイルへのリンクボタン */}
+  {entry.fileUrl && (
+    <a href={entry.fileUrl} target="_blank" rel="noopener noreferrer"
+       style={{background:'var(--gold)', color:'var(--black)', padding:'6px 12px', borderRadius:6, textDecoration:'none', fontWeight:'bold', display:'inline-block', marginBottom:10}}>
+      {entry.fileCategory === 'image' ? '🖼️ 画像を開く' : '📂 元ファイルを開く'}
+    </a>
+  )}
+</div>
 
                 {/* 詳細表示の切り替えボタン */}
                 <button onClick={()=>setShowOrig(!showOrig)}
@@ -1593,15 +1589,16 @@ unsubs.push(
   };
 
  const handleFile=async(fileData)=>{
-    // ★ AIを使う設定の時だけAPIキーをチェックする
+    // AIを使う設定かつAPIキーがない場合のみモーダルを出す
     if(useAiForFile && !apiKey){setShowApiModal(true);return;}
+    
     setLoading(true);setError('');
     try{
       let ai;
       let fileUrl = null;
       
-      // Storageにアップロード
-      if(fileData.rawFile && storage) {
+      // 1. StorageにファイルをアップロードしてURLを取得（画像やWordのリンク用）
+      if(fileData.rawFile && typeof storage !== 'undefined') {
         try {
           const fileRef = storage.ref(`uploads/${Date.now()}_${fileData.name}`);
           await fileRef.put(fileData.rawFile);
@@ -1609,7 +1606,7 @@ unsubs.push(
         } catch(e) { console.warn("Storage upload failed", e); }
       }
 
-     // ★ 直接登録（解析なし）の場合のロジック
+      // 2. 「直接登録（解析なし）」の場合の処理
       if (!useAiForFile) {
         const titleToUse = (fileData.name || '無題ファイル').replace(/\.[^/.]+$/,'');
         const id = String(Date.now());
@@ -1620,24 +1617,57 @@ unsubs.push(
           inputType: 'new',
           improvedPoint: '', missing: [], userMissing: [], comments: [], encouragement: '', aiInsight: '',
           subsidies: [], references: [], papers: [], sites: [],
-          // 画像の場合は文字を表示させないよう空にする
+          // 画像なら空、それ以外ならテキスト内容を入れる
           content: fileData.category === 'image' ? '' : (fileData.content || ''),
           relatedEntryId: jumpInfo?.entryId || null,
           fileCategory: fileData.category || 'text',
           fileName: fileData.name || '',
-          fileUrl: fileUrl, // ★ ここにStorageのURLが正しく入っていることを確認
+          fileUrl: fileUrl, // ここに取得したURLをセット
           objectUrl: null, editorName: userName
         };
         saveEntry(entry);
         setJumpInfo(null);
         setLoading(false);
-        return; 
+        return; // ここで終了
       }
-        saveEntry(entry);
-        setJumpInfo(null);
-        setLoading(false);
-        return; 
+
+      // 3. AI解析を行う場合の処理
+      if(fileData.category === 'pdf'){
+        ai = await analyzeContent(fileData.content, 'pdf');
+      } else if(fileData.category === 'image'){
+        ai = await analyzeImage(fileData.base64, fileData.mimeType);
+      } else {
+        ai = await analyzeContent(fileData.content, 'text');
       }
+
+      const titleToUse = ai.title || (fileData.name||'').replace(/\.[^/.]+$/,'') || '無題の解析';
+      const id = String(Date.now());
+      const entry = {
+        id, createdAt: new Date().toISOString(), project: currentProject, folder: '未分類',
+        title: titleToUse,
+        summary: ai.summary, inputType: ai.inputType||'new',
+        improvedPoint: ai.improvedPoint||'',
+        missing: (ai.missing||[]).map(m=>typeof m==='string'?{id:'m'+Math.random(),text:m}:m),
+        userMissing: [], comments: [], encouragement: ai.encouragement||'',
+        aiInsight: ai.aiInsight||'', subsidies: ai.subsidies||[],
+        references: ai.references||[], papers: ai.papers||[], sites: ai.sites||[],
+        content: fileData.content || '',
+        relatedEntryId: jumpInfo?.entryId || null,
+        fileCategory: fileData.category || 'text',
+        fileName: fileData.name || '',
+        fileUrl: fileUrl,
+        objectUrl: null, editorName: userName
+      };
+      saveEntry(entry);
+      setJumpInfo(null);
+
+    } catch(e) { 
+      setError('エラー: ' + e.message); 
+      console.error(e);
+    } finally { 
+      setLoading(false); 
+    }
+  };
 
       if(fileData.category === 'pdf'){
         // PDFの場合は各ページを画像化して解析
