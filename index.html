@@ -891,29 +891,31 @@ function KnowledgeCard({entry,onDelete,onJumpToInput,onUpdateUserMissing,onMoveT
 
 {/* 表示エリア */}
             <div style={{marginTop:10}}>
-              {/* 【1】画像なら常にサイト上に表示 */}
-              {entry.fileCategory === 'image' && entry.fileUrl && (
+              {/* 【修正】画像URLがあれば常にカードに表示 */}
+              {entry.fileUrl && (entry.fileCategory === 'image' || entry.fileName.match(/\.(jpg|jpeg|png|gif|webp)$/i)) && (
                 <div style={{marginBottom: 12}}>
-                  <img src={entry.fileUrl} alt="添付画像" style={{maxWidth: '100%', maxHeight: '400px', borderRadius: '8px', border: '1px solid var(--border)', display:'block'}} />
+                  <img 
+                    src={entry.fileUrl} 
+                    alt="添付画像" 
+                    style={{maxWidth: '100%', maxHeight: '400px', borderRadius: '8px', border: '1px solid var(--border)', display:'block'}} 
+                    onError={(e) => e.target.style.display = 'none'} // 万が一読み込めない場合は隠す
+                  />
                 </div>
               )}
               
               <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
-                {/* 【2】ファイルURLがある場合は、種類に関わらずリンクを表示（画像でもリンクに飛べるようにする） */}
+                {/* メインボタン：ファイルがある場合は「開く」、ない場合は「詳細」 */}
                 {entry.fileUrl ? (
                   <a href={entry.fileUrl} target="_blank" rel="noopener noreferrer"
-                    style={{background:'var(--gold)', color:'var(--black)', fontSize:11, fontWeight:'bold', padding:'5px 12px', borderRadius:6, textDecoration:'none', display:'inline-flex', alignItems:'center', gap:5}}>
-                    {entry.fileCategory === 'image' ? '🖼️ フルサイズ表示' : '📂 元ファイルを開く'}
+                    style={{background:'var(--gold)', color:'var(--black)', fontSize:12, fontWeight:'bold', padding:'6px 14px', borderRadius:6, textDecoration:'none', display:'inline-flex', alignItems:'center', gap:5}}>
+                    {entry.fileCategory === 'image' ? '🖼️ 画像を全画面で開く' : '📂 元ファイル(Word/PDF等)を開く'}
                   </a>
                 ) : null}
 
-                {/* 【3】テキスト情報がある場合、またはリンクがない場合は詳細ボタンを表示 */}
-                {(entry.content || !entry.fileUrl) && (
-                  <button onClick={()=>setShowOrig(!showOrig)}
-                    style={{background:'none',border:'none',color:'var(--text2)',fontSize:11,padding:0,cursor:'pointer'}}>
-                    {showOrig?'▲ 閉じる':'▼ 詳細/原文を確認'}
-                  </button>
-                )}
+                <button onClick={()=>setShowOrig(!showOrig)}
+                  style={{background:'none',border:'none',color:'var(--text2)',fontSize:11,padding:0,cursor:'pointer'}}>
+                  {showOrig?'▲ 詳細を隠す':'▼ 詳細を確認'}
+                </button>
 
                 {/* カテゴリタグ */}
                 {entry.fileCategory&&entry.fileCategory!=='text'&&(
@@ -925,7 +927,16 @@ function KnowledgeCard({entry,onDelete,onJumpToInput,onUpdateUserMissing,onMoveT
 
               {showOrig && (
                 <div style={{marginTop:10, paddingTop:10, borderTop:'1px solid var(--border)'}}>
-                  {/* 【4】テキストがある場合のみ表示。Word解析データなどはここに出る */}
+                  {/* 【追加】詳細の中にもバックアップとしてリンクを設置 */}
+                  {entry.fileUrl && (
+                    <div style={{marginBottom: 10}}>
+                      <a href={entry.fileUrl} target="_blank" rel="noopener noreferrer" style={{color:'var(--gold)', fontSize:11}}>
+                        📎 直リンク: {entry.fileName || '添付ファイル'}
+                      </a>
+                    </div>
+                  )}
+
+                  {/* テキストコンテンツの表示 */}
                   {entry.content && (
                     <div style={{fontSize:11, color:'var(--text2)', whiteSpace:'pre-wrap', background:'rgba(0,0,0,0.3)', padding:'8px', borderRadius:'6px', marginBottom:'12px', maxHeight:'200px', overflowY:'auto'}}>
                       {entry.content}
@@ -1557,14 +1568,23 @@ unsubs.push(
     setLoading(true);setError('');
     try {
       const id=String(Date.now());
+      // タイトルの作成
       const title = inputText.substring(0, 15) + (inputText.length > 15 ? '...' : '');
+      
       const entry={
         id,createdAt:new Date().toISOString(),project:currentProject,folder:'未分類',
-        title:title,summary:'（AI解析なしの直接登録）',inputType:'new',
+        title:title,
+        summary: '（直接登録）', 
+        inputType:'new',
         improvedPoint:'',missing:[],userMissing:[],comments:[],encouragement:'',aiInsight:'',
         subsidies:[],references:[],papers:[],sites:[],
-        content:inputText,relatedEntryId:jumpInfo?.entryId||null,
-        fileCategory:'text',fileName:'',objectUrl:null,editorName:userName, fileUrl:null
+        content:inputText,
+        relatedEntryId:jumpInfo?.entryId||null,
+        // ここから下が重要：ファイル情報を正しくセット
+        fileCategory: 'text', 
+        fileName: '',
+        fileUrl: null, 
+        objectUrl:null,editorName:userName
       };
       saveEntry(entry);
       setInputText('');setJumpInfo(null);
