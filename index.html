@@ -49,6 +49,29 @@
   /* 枠 */
   --border:rgba(255,140,51,0.3);
 }
+  /* Mark.6テーマ（青×発光） */
+:root[data-theme="mark06"] {
+  /* メインカラー（青ベース） */
+  --gold:#4DA6FF;
+  --gold2:#80C1FF;
+  --gold3:#1A73E8;
+
+  /* 背景（深い青＋宇宙感） */
+  --black:#050A1A;
+  --dark1:#0A1426;
+  --dark2:#102040;
+  --dark3:#183060;
+  --dark4:#204080;
+  --dark5:#2A50A0;
+
+  /* テキスト */
+  --text:#F0F6FF;
+  --text2:#C2DAFF;
+  --text3:#99C2FF;
+
+  /* 枠（少し発光っぽく） */
+  --border:rgba(77,166,255,0.35);
+}
 body{font-family:'Noto Serif JP',serif;background:var(--black);color:var(--text);height:100vh;overflow:hidden;transition:background 0.3s;}
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:var(--dark2)}
@@ -1665,6 +1688,7 @@ unsubs.push(
                   <option value="default">デフォルト（黒×金）</option>
                   <option value="eva01">エヴァ初号機（紫×黄緑）</option>
                   <option value="eva02">エヴァ2号機（赤×オレンジ）</option>
+                  <option value="mark06">Mark.6（青×発光）</option>
                 </select>
                 <div style={{textAlign:'right'}}>
                   <button onClick={()=>setShowSettings(false)} style={{padding:'7px 16px',background:'rgba(248,224,112,0.18)',border:'1px solid rgba(248,224,112,0.6)',borderRadius:6,color:'var(--gold)'}}>閉じる</button>
