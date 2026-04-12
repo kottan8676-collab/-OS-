@@ -890,51 +890,46 @@ function KnowledgeCard({entry,onDelete,onJumpToInput,onUpdateUserMissing,onMoveT
             </div>
 
 {/* --- ここから差し替え --- */}
-            {/* 表示エリア */}
+           {/* 表示エリア */}
             <div style={{marginTop:10}}>
-              {/* 画像があれば表示 */}
-{entry.fileUrl && (entry.fileCategory === 'image' || entry.fileName.match(/\.(jpg|jpeg|png|gif|webp)$/i)) && (
-  <div style={{marginBottom: 12}}>
-    <img src={entry.fileUrl} style={{maxWidth: '100%', borderRadius: '8px'}} />
-  </div>
-)}
+              {/* 【修正】画像URLがあれば画像本体を直接表示 */}
+              {entry.fileUrl && (entry.fileCategory === 'image' || (entry.fileName && entry.fileName.match(/\.(jpg|jpeg|png|gif|webp)$/i))) && (
+                <div style={{marginBottom: 12}}>
+                  <img 
+                    src={entry.fileUrl} 
+                    alt="添付画像" 
+                    style={{maxWidth: '100%', maxHeight: '400px', borderRadius: '8px', border: '1px solid var(--border)', display:'block'}} 
+                  />
+                </div>
+              )}
               
               <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
-                {/* 【2】ファイルURLがあれば、画像・Wordに関わらず目立つ「開く」ボタンを表示 */}
+                {/* 【修正】ファイルがあれば金色の「開く」ボタンを出す（Word/PDF/画像すべて対応） */}
                 {entry.fileUrl ? (
                   <a href={entry.fileUrl} target="_blank" rel="noopener noreferrer"
                     style={{background:'var(--gold)', color:'var(--black)', fontSize:12, fontWeight:'bold', padding:'6px 14px', borderRadius:6, textDecoration:'none', display:'inline-flex', alignItems:'center', gap:5}}>
-                    {entry.fileCategory === 'image' ? '🖼️ フルサイズで開く' : '📂 元ファイル(Word/PDF等)を開く'}
+                    {entry.fileCategory === 'image' ? '🖼️ フルサイズ表示' : '📂 元ファイルを開く'}
                   </a>
                 ) : null}
 
-                {/* 詳細表示の切り替えボタン */}
                 <button onClick={()=>setShowOrig(!showOrig)}
                   style={{background:'none',border:'none',color:'var(--text2)',fontSize:11,padding:0,cursor:'pointer'}}>
                   {showOrig?'▲ 詳細を閉じる':'▼ 詳細を確認'}
                 </button>
-
-                {/* カテゴリタグ */}
-                {entry.fileCategory && entry.fileCategory !== 'text' && (
-                  <span style={{display:'inline-flex',alignItems:'center',gap:3,padding:'2px 8px',background:getFileColor(entry.fileCategory)+'20',border:'1px solid '+getFileColor(entry.fileCategory)+'50',borderRadius:10,fontSize:10,color:getFileColor(entry.fileCategory)}}>
-                    {getFileIcon(entry.fileCategory)} {catLabel[entry.fileCategory]||entry.fileCategory}
-                  </span>
-                )}
               </div>
 
-              {/* 【3】詳細表示エリア */}
               {showOrig && (
                 <div style={{marginTop:10, paddingTop:10, borderTop:'1px solid var(--border)'}}>
-                  {/* 詳細内リンク */}
+                  {/* 詳細表示の中にもバックアップとしてリンクを設置 */}
                   {entry.fileUrl && (
                     <div style={{marginBottom: 10}}>
                       <a href={entry.fileUrl} target="_blank" rel="noopener noreferrer" style={{color:'var(--gold)', fontSize:12, textDecoration:'underline'}}>
-                        🔗 元ファイルへの直接アクセス: {entry.fileName || 'ファイル'}
+                        🔗 直接リンク: {entry.fileName || '添付ファイル'}
                       </a>
                     </div>
                   )}
 
-                  {/* テキストコンテンツがある場合（AI解析した文章など）のみ表示 */}
+                  {/* テキストコンテンツを表示（画像のみの場合は表示しない） */}
                   {entry.content && entry.content.length > 0 && !entry.content.startsWith('[画像') && (
                     <div style={{fontSize:11, color:'var(--text2)', whiteSpace:'pre-wrap', background:'rgba(0,0,0,0.3)', padding:'8px', borderRadius:'6px', marginBottom:'12px', maxHeight:'200px', overflowY:'auto'}}>
                       {entry.content}
@@ -1582,8 +1577,8 @@ unsubs.push(
     finally { setLoading(false); }
   };
 
- const handleFile = async (fileData) => {
-    // AI解析が必要な時だけAPIキーをチェック
+const handleFile = async (fileData) => {
+    // AIを使う設定かつAPIキーがない場合は中断
     if (useAiForFile && !apiKey) {
       setShowApiModal(true);
       return;
@@ -1596,7 +1591,7 @@ unsubs.push(
       let ai;
       let fileUrl = null;
 
-      // 1. Firebase StorageにファイルをアップロードしてURLを取得
+      // 1. StorageにファイルをアップロードしてURLを取得
       if (fileData.rawFile && typeof storage !== 'undefined') {
         try {
           const fileRef = storage.ref(`uploads/${Date.now()}_${fileData.name}`);
@@ -1607,12 +1602,11 @@ unsubs.push(
         }
       }
 
-      // 2. 直接登録（AI解析なし）の場合の処理
+      // 2. 直接登録（AI解析なし）の場合
       if (!useAiForFile) {
         const titleToUse = (fileData.name || '無題ファイル').replace(/\.[^/.]+$/, '');
-        const id = String(Date.now());
         const entry = {
-          id,
+          id: String(Date.now()),
           createdAt: new Date().toISOString(),
           project: currentProject,
           folder: '未分類',
@@ -1633,12 +1627,12 @@ unsubs.push(
         saveEntry(entry);
         setJumpInfo(null);
         setLoading(false);
-        return; // ここで終了
+        return; 
       }
 
       // 3. AI解析を行う場合の処理
       if (fileData.category === 'pdf') {
-        const arrBuf = await fileData.rawFile.arrayBuffer(); // ここでエラーが出ていました
+        const arrBuf = await fileData.rawFile.arrayBuffer();
         const b64Images = await extractPdfImages(arrBuf);
         ai = await analyzeMultipleImages(apiKey, b64Images, currentProject, projectEntries, feedbacks, '未分類');
       } else if (fileData.category === 'image' || fileData.type === 'image') {
@@ -1647,11 +1641,10 @@ unsubs.push(
         ai = await analyzeContent(fileData.content, 'text');
       }
 
-      // AI解析結果を保存
+      // 4. 解析結果を保存
       const titleToUse = ai.title || (fileData.name || '').replace(/\.[^/.]+$/, '') || '無題の解析';
-      const id = String(Date.now());
       const entry = {
-        id,
+        id: String(Date.now()),
         createdAt: new Date().toISOString(),
         project: currentProject,
         folder: '未分類',
@@ -1660,14 +1653,8 @@ unsubs.push(
         inputType: ai.inputType || 'new',
         improvedPoint: ai.improvedPoint || '',
         missing: (ai.missing || []).map(m => typeof m === 'string' ? { id: 'm' + Math.random(), text: m } : m),
-        userMissing: [],
-        comments: [],
-        encouragement: ai.encouragement || '',
-        aiInsight: ai.aiInsight || '',
-        subsidies: ai.subsidies || [],
-        references: ai.references || [],
-        papers: ai.papers || [],
-        sites: ai.sites || [],
+        userMissing: [], comments: [], encouragement: ai.encouragement || '', aiInsight: ai.aiInsight || '',
+        subsidies: ai.subsidies || [], references: ai.references || [], papers: ai.papers || [], sites: ai.sites || [],
         content: fileData.content || '',
         relatedEntryId: jumpInfo?.entryId || null,
         fileCategory: fileData.category || 'text',
