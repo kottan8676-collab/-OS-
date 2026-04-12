@@ -26,6 +26,25 @@
   --text:#F4FFF0; --text2:#D0F0A0; --text3:#A0D860;
   --border:rgba(160,216,96,0.3);
 }
+  /* 2号機テーマ（赤×オレンジ） */
+:root[data-theme="eva02"] {
+  --gold:#FF6A00;     /* オレンジ */
+  --gold2:#FF8C33;    /* 明るいオレンジ */
+  --gold3:#CC5200;    /* 濃いオレンジ */
+
+  --black:#2A0000;    /* 暗い赤 */
+  --dark1:#330000;
+  --dark2:#4D0000;
+  --dark3:#660000;
+  --dark4:#800000;
+  --dark5:#990000;
+
+  --text:#FFF5F0;     /* 少し暖かい白 */
+  --text2:#FFD9C2;    /* オレンジ寄り */
+  --text3:#FFB380;
+
+  --border:rgba(255,106,0,0.35);
+}
 body{font-family:'Noto Serif JP',serif;background:var(--black);color:var(--text);height:100vh;overflow:hidden;transition:background 0.3s;}
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:var(--dark2)}
@@ -1641,6 +1660,7 @@ unsubs.push(
                   style={{width:'100%',padding:10,background:'var(--dark4)',border:'1px solid var(--border)',borderRadius:6,color:'var(--text)',fontSize:13,marginBottom:20}}>
                   <option value="default">デフォルト（黒×金）</option>
                   <option value="eva01">エヴァ初号機（紫×黄緑）</option>
+                  <option value="eva02">エヴァ2号機（赤×オレンジ）</option>
                 </select>
                 <div style={{textAlign:'right'}}>
                   <button onClick={()=>setShowSettings(false)} style={{padding:'7px 16px',background:'rgba(248,224,112,0.18)',border:'1px solid rgba(248,224,112,0.6)',borderRadius:6,color:'var(--gold)'}}>閉じる</button>
