@@ -3,6 +3,24 @@
 
 <!DOCTYPE html>
 <html lang="ja">
+  /* 2号機テーマ（赤×オレンジ、抑え目） */
+  :root[data-theme="eva02"] {
+    --gold:#E87040; --gold2:#F09060; --gold3:#C05020;
+    --black:#1A0808; --dark1:#220C0C; --dark2:#2E1010;
+    --dark3:#3B1414; --dark4:#4A1818; --dark5:#5B2020;
+    --text:#FFF4F0; --text2:#F0C0A0; --text3:#C07060;
+    --red:#FF9090; --green:#70E0A0; --blue:#90C0FF;
+    --border:rgba(232,112,64,0.3);
+  }
+  /* マーク6テーマ（黒×ダークレッド、沈黙） */
+  :root[data-theme="mark6"] {
+    --gold:#880000; --gold2:#AA1111; --gold3:#660000;
+    --black:#030303; --dark1:#080505; --dark2:#100808;
+    --dark3:#180A0A; --dark4:#200C0C; --dark5:#280E0E;
+    --text:#F0D0D0; --text2:#D08080; --text3:#A05050;
+    --red:#FF4444; --green:#40A060; --blue:#6080A0;
+    --border:rgba(136,0,0,0.4);
+  }
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
@@ -52,9 +70,14 @@ input,textarea,select{font-family:'Noto Serif JP',serif}
   
   function draw(){
     const isEva = window.kosTheme === 'eva01';
-    const cLine = isEva ? '#A0D860' : '#E8C96A';
-    const cFill = isEva ? '#B8F078' : '#FFE890';
-    const cGlow = isEva ? '#70A030' : '#F8E070';
+      const isEva02 = window.kosTheme === 'eva02';
+      const isMark6 = window.kosTheme === 'mark6';
+      const cLine = isEva ? '#A0D860' : isEva02 ? '#E87040' : isMark6 ? '#440000' : '#E8C96A';
+      const cFill = isEva ? '#B8F078' : isEva02 ? '#F09060' : isMark6 ? '#660000' : '#FFE890';
+      const cGlow = isEva ? '#70A030' : isEva02 ? '#C05020' : isMark6 ? '#220000' : '#F8E070';
+    
+    
+    
     
     ctx.clearRect(0,0,W,H);t+=0.003;
     ctx.save();ctx.strokeStyle=cLine;ctx.lineWidth=0.6;ctx.globalAlpha=0.12;
@@ -108,6 +131,22 @@ input,textarea,select{font-family:'Noto Serif JP',serif}
     ctx.save();const scanY=(t*80)%H;const scanGrad=ctx.createLinearGradient(0,scanY-40,0,scanY+40);
     scanGrad.addColorStop(0,'rgba(248,224,112,0)');scanGrad.addColorStop(0.5,'rgba(248,224,112,0.04)');scanGrad.addColorStop(1,'rgba(248,224,112,0)');
     ctx.fillStyle=scanGrad;ctx.fillRect(0,scanY-40,W,80);ctx.restore();
+    if(isMark6){
+      ctx.save();ctx.globalAlpha=0.15;ctx.strokeStyle='#440000';ctx.lineWidth=0.4;
+      for(let r=50;r<Math.max(W,H)*0.8;r+=40){const p=Math.sin(t*0.5+r*0.02);ctx.globalAlpha=0.1+0.05*p;ctx.beginPath();ctx.arc(W/2,H/2,r,0,Math.PI*2);ctx.stroke();}
+      ctx.globalAlpha=0.08;ctx.strokeStyle='#660000';ctx.lineWidth=0.3;
+      for(let i=0;i<8;i++){const a=Math.PI*2/8*i+t*0.03;ctx.beginPath();ctx.moveTo(W/2,H/2);ctx.lineTo(W/2+Math.cos(a)*Math.max(W,H),H/2+Math.sin(a)*Math.max(W,H));ctx.stroke();}
+      ctx.restore();
+    }
+    if(isEva02){
+      ctx.save();
+      // MAGI-style hexagonal grid with red tint
+      ctx.globalAlpha=0.06;ctx.strokeStyle='#E87040';ctx.lineWidth=0.5;
+      const scanY2=(t*60)%H;const g2=ctx.createLinearGradient(0,scanY2-30,0,scanY2+30);
+      g2.addColorStop(0,'rgba(232,112,64,0)');g2.addColorStop(0.5,'rgba(232,112,64,0.06)');g2.addColorStop(1,'rgba(232,112,64,0)');
+      ctx.fillStyle=g2;ctx.fillRect(0,scanY2-30,W,60);
+      ctx.restore();
+    }
     requestAnimationFrame(draw);
   }
   draw();
@@ -479,43 +518,50 @@ function ApiKeyModal({show,onSave,onClose}){
   );
 }
 
-function FileUploadZone({onFile}){
+function FileUploadZone({onFile,onDirectFile}){
+  const[directMode,setDirectMode]=useState(false);
   const[drag,setDrag]=useState(false);
   const[processingCount,setProcessingCount]=useState(0);
   const[queue,setQueue]=useState([]);
   const ref=useRef(null);
-  const processSingle=async(f)=>{
+  const processSingle=async(f,callback)=>{
     if(f.size>30*1024*1024){alert(f.name+': ファイルサイズが大きすぎます（最大30MB）');return;}
     const category=getFileCategory(f.name,f.type);
     if(category==='image'){
       await new Promise((res)=>{
         const reader=new FileReader();
-        reader.onload=e=>{try{const b64=e.target.result.split(',')[1];if(!b64)throw new Error('画像読み込み失敗');onFile({type:'image',base64:b64,mimeType:f.type,name:f.name,category});}catch(err){alert(f.name+': '+err.message);}res();};
+        reader.onload=e=>{try{const b64=e.target.result.split(',')[1];if(!b64)throw new Error('画像読み込み失敗');callback({type:'image',base64:b64,mimeType:f.type,name:f.name,category});}catch(err){alert(f.name+': '+err.message);}res();};
         reader.onerror=()=>{alert(f.name+': 読み込み失敗');res();};reader.readAsDataURL(f);
       });return;
     }
     if(['word','pdf','excel','ppt'].includes(category)){
       const arrayBuffer=await f.arrayBuffer();let extractedText='';
       try{if(category==='word')extractedText=await extractWordText(arrayBuffer);else if(category==='pdf')extractedText=await extractPdfText(arrayBuffer);else extractedText=await extractZipText(arrayBuffer,category);}catch(e){extractedText='['+f.name+': テキスト抽出失敗]';}
-      onFile({type:'text',content:extractedText||('['+f.name+']'),name:f.name,category,mimeType:f.type,fileName:f.name, rawFile:f});return;
+      callback({type:'text',content:extractedText||('['+f.name+']'),name:f.name,category,mimeType:f.type,fileName:f.name, rawFile:f});return;
     }
     const okExt=/\.(txt|md|csv|json|xml|html|js|ts|py|rb|java|cpp|c|h|css)$/i;
     const okMime=['text/plain','text/csv','text/markdown','application/json','text/html','application/xml'];
     if(!okMime.some(t=>f.type.startsWith(t))&&!okExt.test(f.name)){alert(f.name+': 対応していないファイル形式です');return;}
     await new Promise((res)=>{
       const reader=new FileReader();
-      reader.onload=e=>{if(e.target.result)onFile({type:'text',content:e.target.result,name:f.name,category:'text'});res();};
+      reader.onload=e=>{if(e.target.result)callback({type:'text',content:e.target.result,name:f.name,category:'text'});res();};
       reader.onerror=()=>{alert(f.name+': 読み込み失敗');res();};reader.readAsText(f,'UTF-8');
     });
   };
   const handle=async(files)=>{
     const arr=Array.from(files);if(arr.length===0)return;
+    const cb=(directMode&&onDirectFile)?onDirectFile:onFile;
     setProcessingCount(arr.length);
-    for(let i=0;i<arr.length;i++){setQueue([arr[i].name]);try{await processSingle(arr[i]);}catch(e){alert(arr[i].name+': '+e.message);}}
+    for(let i=0;i<arr.length;i++){setQueue([arr[i].name]);try{await processSingle(arr[i],cb);}catch(e){alert(arr[i].name+': '+e.message);}}
     setProcessingCount(0);setQueue([]);
   };
   const busy=processingCount>0;
   return(
+    <div style={{display:'flex',justifyContent:'flex-end',marginBottom:4}}>
+      <button onClick={()=>setDirectMode(!directMode)} style={{padding:'2px 10px',background:directMode?'rgba(144,192,255,0.18)':'transparent',border:'1px solid rgba(144,192,255,0.35)',borderRadius:10,color:'#90C0FF',fontSize:10,cursor:'pointer'}}>
+        {directMode?'📥そのまま登録モード':'🧠解析して登録モード'}
+      </button>
+    </div>
     <div onDragOver={e=>{e.preventDefault();setDrag(true);}} onDragLeave={()=>setDrag(false)}
       onDrop={e=>{e.preventDefault();setDrag(false);handle(e.dataTransfer.files);}}
       onClick={()=>!busy&&ref.current?.click()}
@@ -721,6 +767,11 @@ function KnowledgeCard({entry,onDelete,onJumpToInput,onUpdateUserMissing,onMoveT
                 <span style={{fontSize:12,color:'#A0E8B8'}}>{entry.improvedPoint}</span>
               </div>
             )}
+            {entry.imageBase64&&(
+              <div style={{marginTop:10,textAlign:'center'}}>
+                <img src={'data:'+(entry.imageMimeType||'image/jpeg')+';base64,'+entry.imageBase64} alt={entry.fileName||'画像'} style={{maxWidth:'100%',maxHeight:300,borderRadius:6,border:'1px solid var(--border)'}}/>
+              </div>
+            )}
             <div style={{marginTop:10}}>
               <div style={{fontSize:11,color:'var(--gold3)',fontWeight:600,marginBottom:5}}>📝 要約</div>
               <div style={{fontSize:12,color:'var(--text)',lineHeight:'1.8',background:'var(--dark4)',padding:'8px 10px',borderRadius:6}}>{entry.summary}</div>
@@ -861,12 +912,6 @@ function KnowledgeCard({entry,onDelete,onJumpToInput,onUpdateUserMissing,onMoveT
               </div>
               {showOrig && (
                 <div style={{marginTop:10}}>
-                  {/* リマインダー設定 */}
-                  <div style={{paddingTop:10,borderTop:'1px solid var(--border)'}}>
-                    <div style={{fontSize:10,color:'var(--text3)',marginBottom:4}}>⏰ リマインダー</div>
-                    <input type="datetime-local" value={entry.reminder||''} onChange={e=>onUpdate(entry.id,{reminder:e.target.value})}
-                      style={{width:'100%',background:'var(--dark4)',border:'1px solid var(--border)',borderRadius:4,color:'var(--text)',fontSize:11,padding:4}}/>
-                  </div>
                   {/* フォルダ・プロジェクト移動セクション */}
                   <div style={{marginTop:12,paddingTop:10,borderTop:'1px solid var(--border)',display:'flex',flexDirection:'column',gap:8}}>
                     {folders && folders[entry.project] && folders[entry.project].length > 1 && (
@@ -1482,6 +1527,37 @@ unsubs.push(
     }catch(e){setError('エラー: '+e.message);}
     finally{setLoading(false);}
   };
+  const handleDirectSave=()=>{
+    if(!inputText.trim()){setError('テキストを入力してください');return;}
+    const id=String(Date.now());
+    const title=(inputText.trim().split('\n')[0]||'ノータイトル').substring(0,20);
+    const entry={id,createdAt:new Date().toISOString(),project:currentProject,folder:'未分類',
+      title,summary:inputText.trim().substring(0,300),inputType:'new',improvedPoint:'',
+      missing:[],userMissing:[],comments:[],encouragement:'',aiInsight:'',
+      subsidies:[],references:[],papers:[],sites:[],
+      content:inputText,relatedEntryId:jumpInfo?.entryId||null,
+      fileCategory:'text',fileName:'',objectUrl:null,editorName:userName};
+    saveEntry(entry);setInputText('');setJumpInfo(null);
+  };
+  const handleDirectFile=async(fileData)=>{
+    setLoading(true);setError('');
+    try{
+      const id=String(Date.now());
+      const isImage=fileData.category==='image';
+      const titleToUse=(fileData.name||'ノータイトル').replace(/\.[^/.]+$/,'');
+      const entry={id,createdAt:new Date().toISOString(),project:currentProject,folder:'未分類',
+        title:titleToUse,summary:isImage?('[画像: '+fileData.name+']'):((fileData.content||'').substring(0,300)),
+        inputType:'new',improvedPoint:'',missing:[],userMissing:[],comments:[],
+        encouragement:'',aiInsight:'',subsidies:[],references:[],papers:[],sites:[],
+        content:isImage?('[image:'+fileData.name+']'):(fileData.content||''),
+        relatedEntryId:jumpInfo?.entryId||null,
+        fileCategory:fileData.category||'text',fileName:fileData.name||'',
+        imageBase64:isImage?fileData.base64:null,imageMimeType:isImage?fileData.mimeType:null,
+        objectUrl:null,editorName:userName};
+      saveEntry(entry);setJumpInfo(null);
+    }catch(e){setError('エラー: '+e.message);}
+    finally{setLoading(false);}
+  };
 
   const handleFile=async(fileData)=>{
     if(!apiKey){setShowApiModal(true);return;}
@@ -1641,6 +1717,8 @@ unsubs.push(
                   style={{width:'100%',padding:10,background:'var(--dark4)',border:'1px solid var(--border)',borderRadius:6,color:'var(--text)',fontSize:13,marginBottom:20}}>
                   <option value="default">デフォルト（黒×金）</option>
                   <option value="eva01">エヴァ初号機（紫×黄緑）</option>
+                <option value="eva02">エヴァ2号機（赤×オレンジ）</option>
+                <option value="mark6">マーク6（深黒×暗赤）</option>
                 </select>
                 <div style={{textAlign:'right'}}>
                   <button onClick={()=>setShowSettings(false)} style={{padding:'7px 16px',background:'rgba(248,224,112,0.18)',border:'1px solid rgba(248,224,112,0.6)',borderRadius:6,color:'var(--gold)'}}>閉じる</button>
@@ -1733,13 +1811,19 @@ unsubs.push(
                   placeholder="知識・メモ・情報を入力..."
                   style={{width:'100%',padding:'8px 10px',background:'var(--dark3)',border:'1px solid var(--border)',borderRadius:7,color:'var(--text)',fontSize:12,lineHeight:'1.75',resize:'vertical',outline:'none'}}/>
               </div>
+              <div style={{display:'flex',gap:6}}>
               <button onClick={handleSubmit} disabled={loading}
-                style={{width:'100%',padding:'9px',background:loading?'rgba(248,224,112,0.08)':'rgba(248,224,112,0.18)',border:'1px solid rgba(248,224,112,0.55)',borderRadius:8,color:loading?'var(--text3)':'var(--gold)',fontSize:13,fontWeight:600,transition:'all 0.2s'}}>
+                style={{flex:1,padding:'9px',background:loading?'rgba(248,224,112,0.08)':'rgba(248,224,112,0.18)',border:'1px solid rgba(248,224,112,0.55)',borderRadius:8,color:loading?'var(--text3)':'var(--gold)',fontSize:13,fontWeight:600,transition:'all 0.2s'}}>
                 {loading?'⏳ AI解析中...':'✨ 解析して登録'}
               </button>
+              <button onClick={handleDirectSave} disabled={loading}
+                style={{flex:1,padding:'9px',background:loading?'rgba(144,192,255,0.04)':'rgba(144,192,255,0.12)',border:'1px solid rgba(144,192,255,0.4)',borderRadius:8,color:loading?'var(--text3)':'#90C0FF',fontSize:13,fontWeight:600,transition:'all 0.2s'}}>
+                📥 そのまま登録
+              </button>
+            </div>
               <div>
                 <label style={{fontSize:11,color:'var(--text3)',display:'block',marginBottom:5}}>ファイル入力（複数可）</label>
-                <FileUploadZone onFile={handleFile}/>
+                <FileUploadZone onFile={handleFile} onDirectFile={handleDirectFile}/>
               </div>
               {error&&(
                 <div style={{padding:'8px 10px',background:'rgba(255,144,144,0.08)',border:'1px solid rgba(255,144,144,0.28)',borderRadius:6,color:'#FFAAAA',fontSize:12}}>⚠ {error}</div>
