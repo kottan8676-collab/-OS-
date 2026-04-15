@@ -1,6 +1,9 @@
 
 
 
+
+
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -28,22 +31,42 @@
 }
   /* 2号機テーマ（赤×オレンジ、押え目） */
   :root[data-theme="eva02"] {
-    --gold:#E87040; --gold2:#F09060; --gold3:#C05020;
-    --black:#1A0808; --dark1:#220C0C; --dark2:#2E1010;
-    --dark3:#3B1414; --dark4:#4A1818; --dark5:#5B2020;
-    --text:#FFF4F0; --text2:#F0C0A0; --text3:#C07060;
-    --red:#FF9090; --green:#70E0A0; --blue:#90C0FF;
-    --border:rgba(232,112,64,0.3);
-  }
+  --gold:#FF9A5C;
+  --gold2:#FFB380;
+  --gold3:#FF6A2A;
+
+  --black:#1A0A08;
+  --dark1:#24100C;
+  --dark2:#2F1510;
+  --dark3:#3C1A14;
+  --dark4:#4A2018;
+  --dark5:#5C281C;
+
+  --text:#FFF6F2;
+  --text2:#FFD2B8;
+  --text3:#FF9A5C;
+
+  --border:rgba(255,154,92,0.35);
+}
   /* マーク6テーマ（黒×ダークレッド、沈黙） */
   :root[data-theme="mark6"] {
-    --gold:#880000; --gold2:#AA1111; --gold3:#660000;
-    --black:#030303; --dark1:#080505; --dark2:#100808;
-    --dark3:#180A0A; --dark4:#200C0C; --dark5:#280E0E;
-    --text:#F0D0D0; --text2:#D08080; --text3:#A05050;
-    --red:#FF4444; --green:#40A060; --blue:#6080A0;
-    --border:rgba(136,0,0,0.4);
-  }
+  --gold:#FF8C42;      /* オレンジ */
+  --gold2:#FFB066;
+  --gold3:#CC6A2A;
+
+  --black:#05080F;
+  --dark1:#0A1120;
+  --dark2:#0F1A30;
+  --dark3:#142340;
+  --dark4:#1A2C55;
+  --dark5:#20366A;
+
+  --text:#EAF2FF;
+  --text2:#A8C4FF;
+  --text3:#FF8C42;
+
+  --border:rgba(255,140,66,0.35);
+}
 body{font-family:'Noto Serif JP',serif;background:var(--black);color:var(--text);height:100vh;overflow:hidden;transition:background 0.3s;}
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:var(--dark2)}
@@ -66,90 +89,672 @@ input,textarea,select{font-family:'Noto Serif JP',serif}
   resize();window.addEventListener('resize',resize);
   let t=0;
   window.kosTheme = localStorage.getItem('kos_theme') || 'default';
+  window.kosBg = localStorage.getItem('kos_bgType') || 'classic';
   document.documentElement.setAttribute('data-theme', window.kosTheme);
-  
+ 
+  // ===== 宇宙背景データ（初期化時に一度だけ生成）=====
+  // 星（通常）
+  const STARS = Array.from({length:320},()=>({
+    x: Math.random(),
+    y: Math.random(),
+    r: Math.random()*1.8+0.2,
+    alpha: Math.random()*0.7+0.3,
+    twinkle: Math.random()*Math.PI*2,
+    twinkleSpeed: Math.random()*0.03+0.008,
+    color: [
+      'rgba(255,255,255,1)',
+      'rgba(200,220,255,1)',
+      'rgba(255,240,200,1)',
+      'rgba(255,200,200,1)',
+      'rgba(200,255,255,1)',
+    ][Math.floor(Math.random()*5)]
+  }));
+  // 輝く大きな星
+  const BIG_STARS = Array.from({length:18},()=>({
+    x: Math.random(),
+    y: Math.random(),
+    r: Math.random()*3+2.5,
+    alpha: Math.random()*0.5+0.5,
+    twinkle: Math.random()*Math.PI*2,
+    twinkleSpeed: Math.random()*0.025+0.005,
+    color: [
+      'rgba(255,255,255,1)',
+      'rgba(180,210,255,1)',
+      'rgba(255,230,180,1)',
+    ][Math.floor(Math.random()*3)]
+  }));
+  // 惑星
+  const PLANETS = [
+    {x:0.72, y:0.14, r:38, hue:200, rings:true,  ringTilt:0.28, moons:1},
+    {x:0.12, y:0.22, r:22, hue:30,  rings:false, ringTilt:0,    moons:0},
+    {x:0.88, y:0.60, r:16, hue:160, rings:false, ringTilt:0,    moons:0},
+    {x:0.25, y:0.78, r:28, hue:280, rings:true,  ringTilt:0.22, moons:0},
+    {x:0.60, y:0.08, r:12, hue:50,  rings:false, ringTilt:0,    moons:0},
+  ];
+  // 星雲（nebula）- 比率で定義
+  const NEBULAE = [
+    {x:0.30, y:0.35, rxR:0.22, ryR:0.14, hue:260, alpha:0.07},
+    {x:0.75, y:0.65, rxR:0.18, ryR:0.12, hue:180, alpha:0.06},
+    {x:0.55, y:0.85, rxR:0.25, ryR:0.10, hue:320, alpha:0.05},
+  ];
+  // 天の川（帯状の星密集）
+  const MILKYWAY = Array.from({length:200},()=>({
+    x: Math.random(),
+    y: Math.random()*0.6+0.1,
+    r: Math.random()*1.2+0.1,
+    alpha: Math.random()*0.35+0.05,
+  }));
+ 
   function draw(){
-    const isEva = window.kosTheme === 'eva01';
-      const isEva02 = window.kosTheme === 'eva02';
-      const isMark6 = window.kosTheme === 'mark6';
-      const cLine = isEva ? '#A0D860' : isEva02 ? '#E87040' : isMark6 ? '#440000' : '#E8C96A';
-      const cFill = isEva ? '#B8F078' : isEva02 ? '#F09060' : isMark6 ? '#660000' : '#FFE890';
-      const cGlow = isEva ? '#70A030' : isEva02 ? '#C05020' : isMark6 ? '#220000' : '#F8E070';
-    
-    
-    
-    
-    ctx.clearRect(0,0,W,H);t+=0.003;
-    ctx.save();ctx.strokeStyle=cLine;ctx.lineWidth=0.6;ctx.globalAlpha=0.12;
-    const hw=80,hh=hw*Math.sqrt(3)/2;
-    for(let row=-1;row<H/hh+2;row++){for(let col=-1;col<W/hw+2;col++){
-      const x=col*hw*1.5,y=row*hh*2+(col%2)*hh;ctx.beginPath();
-      for(let i=0;i<6;i++){const a=Math.PI/180*(60*i-30);ctx.lineTo(x+hw/2*Math.cos(a),y+hw/2*Math.sin(a));}
-      ctx.closePath();ctx.stroke();
-    }}ctx.restore();
-    const cx=W/2,cy=H/2;
-    const sephiroth=[[cx,cy-H*0.38],[cx-W*0.10,cy-H*0.22],[cx+W*0.10,cy-H*0.22],[cx-W*0.10,cy-H*0.06],[cx+W*0.10,cy-H*0.06],[cx,cy+H*0.04],[cx-W*0.10,cy+H*0.16],[cx+W*0.10,cy+H*0.16],[cx,cy+H*0.28],[cx,cy+H*0.42]];
-    const paths=[[0,1],[0,2],[1,2],[1,3],[2,4],[1,5],[2,5],[3,4],[3,5],[4,5],[3,6],[4,7],[5,6],[5,7],[5,8],[6,7],[6,8],[7,8],[8,9]];
-    ctx.save();
-    paths.forEach(([a,b],pi)=>{
-      const phase=t*2+pi*0.4,prog=(Math.sin(phase)+1)/2;
-      const ax=sephiroth[a][0],ay=sephiroth[a][1],bx=sephiroth[b][0],by=sephiroth[b][1];
-      const gx=ax+(bx-ax)*prog,gy=ay+(by-ay)*prog;
-      ctx.strokeStyle='#E8C96A';ctx.lineWidth=0.5;ctx.globalAlpha=0.18+0.07*Math.sin(phase);
-      ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(bx,by);ctx.stroke();
-      ctx.beginPath();ctx.arc(gx,gy,2.5,0,Math.PI*2);ctx.fillStyle='#FFE890';
-      ctx.globalAlpha=0.55*Math.sin(phase+0.5);ctx.fill();
-    });ctx.restore();
-    ctx.save();sephiroth.forEach(([x,y],i)=>{
-      const pulse=Math.sin(t*2.5+i*0.8),r=3+1.5*pulse;
-      ctx.globalAlpha=0.3+0.15*pulse;ctx.fillStyle='#F8E070';ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();
-      ctx.globalAlpha=0.08+0.05*pulse;ctx.strokeStyle='#FFE890';ctx.lineWidth=8+4*pulse;
-      ctx.beginPath();ctx.arc(x,y,r+4,0,Math.PI*2);ctx.stroke();
-    });ctx.restore();
-    ctx.save();[320,220,130,60,20].forEach((r,i)=>{
-      const rot=t*(i%2===0?1:-1)*0.15;
-      ctx.globalAlpha=0.12+0.04*Math.sin(t+i);ctx.strokeStyle='#E8C96A';ctx.lineWidth=i===0?1.2:0.6;
-      ctx.beginPath();ctx.arc(W/2,H/2,r,0,Math.PI*2);ctx.stroke();
-      if(i<3){ctx.save();ctx.translate(W/2,H/2);ctx.rotate(rot);ctx.globalAlpha=0.08;ctx.setLineDash([8,r*0.3]);
-      ctx.beginPath();ctx.arc(0,0,r,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);ctx.restore();}
-    });ctx.restore();
-    ctx.save();ctx.translate(W/2,H/2);ctx.rotate(t*0.08);ctx.strokeStyle='#F8E070';ctx.lineWidth=0.8;ctx.globalAlpha=0.12;
-    [[0,2,4],[1,3,5]].forEach(idx=>{ctx.beginPath();idx.forEach((k,i)=>{const a=Math.PI/3*k-Math.PI/2;const px=100*Math.cos(a),py=100*Math.sin(a);i===0?ctx.moveTo(px,py):ctx.lineTo(px,py);});ctx.closePath();ctx.stroke();});ctx.restore();
-    ctx.save();ctx.globalAlpha=0.08;ctx.lineWidth=0.8;ctx.strokeStyle='#E8C96A';
-    [[0,0,W,H],[W,0,0,H],[W/2,0,W/2,H],[0,H/2,W,H/2]].forEach(([x1,y1,x2,y2])=>{ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();});ctx.restore();
-    ctx.save();ctx.globalAlpha=0.06;ctx.lineWidth=0.4;ctx.setLineDash([3,9]);ctx.strokeStyle='#E8C96A';
-    [H*0.17,H*0.33,H*0.67,H*0.83].forEach(y=>{ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();});
-    [W*0.17,W*0.33,W*0.67,W*0.83].forEach(x=>{ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();});
-    ctx.setLineDash([]);ctx.restore();
-    ctx.save();ctx.translate(W/2,H/2);ctx.rotate(t*0.04);ctx.globalAlpha=0.08;ctx.lineWidth=0.9;ctx.strokeStyle='#FFE890';
-    [[0,-160,160,false],[0,160,160,true]].forEach(([ox,oy,r,inv])=>{
-      ctx.beginPath();for(let i=0;i<3;i++){const a=Math.PI/180*(120*i+(inv?180:270));ctx.lineTo(ox+r*Math.cos(a),oy+r*Math.sin(a));}
-      ctx.closePath();ctx.stroke();
-    });ctx.restore();
-    ctx.save();ctx.globalAlpha=0.3+0.15*Math.sin(t*1.5);ctx.lineWidth=1;ctx.strokeStyle='#E8C96A';
-    [[0,0,160,0,0,160],[W,0,W-160,0,W,160],[0,H,160,H,0,H-160],[W,H,W-160,H,W,H-160]].forEach(([x1,y1,x2,y2,x3,y3])=>{ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.lineTo(x3,y3);ctx.stroke();});ctx.restore();
-    ctx.save();const scanY=(t*80)%H;const scanGrad=ctx.createLinearGradient(0,scanY-40,0,scanY+40);
-    scanGrad.addColorStop(0,'rgba(248,224,112,0)');scanGrad.addColorStop(0.5,'rgba(248,224,112,0.04)');scanGrad.addColorStop(1,'rgba(248,224,112,0)');
-    ctx.fillStyle=scanGrad;ctx.fillRect(0,scanY-40,W,80);ctx.restore();
-    if(isMark6){
-      ctx.save();ctx.globalAlpha=0.15;ctx.strokeStyle='#440000';ctx.lineWidth=0.4;
-      for(let r=50;r<Math.max(W,H)*0.8;r+=40){const p=Math.sin(t*0.5+r*0.02);ctx.globalAlpha=0.1+0.05*p;ctx.beginPath();ctx.arc(W/2,H/2,r,0,Math.PI*2);ctx.stroke();}
-      ctx.globalAlpha=0.08;ctx.strokeStyle='#660000';ctx.lineWidth=0.3;
-      for(let i=0;i<8;i++){const a=Math.PI*2/8*i+t*0.03;ctx.beginPath();ctx.moveTo(W/2,H/2);ctx.lineTo(W/2+Math.cos(a)*Math.max(W,H),H/2+Math.sin(a)*Math.max(W,H));ctx.stroke();}
-      ctx.restore();
-    }
-    if(isEva02){
+    const isEva   = window.kosTheme === 'eva01';
+    const isEva02 = window.kosTheme === 'eva02';
+    const isMark6 = window.kosTheme === 'mark6';
+    const cLine = isEva ? '#A0D860' : isEva02 ? '#E87040' : isMark6 ? '#440000' : '#E8C96A';
+ 
+    ctx.clearRect(0,0,W,H);
+    t+=0.003;
+ 
+    // ===== クラシック（金色セフィロトの樹）=====
+    if(window.kosBg === 'classic' || window.kosBg === 'default') {
+      ctx.save();ctx.strokeStyle=cLine;ctx.lineWidth=0.6;ctx.globalAlpha=0.12;
+      const hw=80,hh=hw*Math.sqrt(3)/2;
+      for(let row=-1;row<H/hh+2;row++){for(let col=-1;col<W/hw+2;col++){
+        const x=col*hw*1.5,y=row*hh*2+(col%2)*hh;ctx.beginPath();
+        for(let i=0;i<6;i++){const a=Math.PI/180*(60*i-30);ctx.lineTo(x+hw/2*Math.cos(a),y+hw/2*Math.sin(a));}
+        ctx.closePath();ctx.stroke();
+      }}ctx.restore();
+      const cx=W/2,cy=H/2;
+      const sephiroth=[[cx,cy-H*0.38],[cx-W*0.10,cy-H*0.22],[cx+W*0.10,cy-H*0.22],[cx-W*0.10,cy-H*0.06],[cx+W*0.10,cy-H*0.06],[cx,cy+H*0.04],[cx-W*0.10,cy+H*0.16],[cx+W*0.10,cy+H*0.16],[cx,cy+H*0.28],[cx,cy+H*0.42]];
+      const paths=[[0,1],[0,2],[1,2],[1,3],[2,4],[1,5],[2,5],[3,4],[3,5],[4,5],[3,6],[4,7],[5,6],[5,7],[5,8],[6,7],[6,8],[7,8],[8,9]];
       ctx.save();
-      // MAGI-style hexagonal grid with red tint
-      ctx.globalAlpha=0.06;ctx.strokeStyle='#E87040';ctx.lineWidth=0.5;
-      const scanY2=(t*60)%H;const g2=ctx.createLinearGradient(0,scanY2-30,0,scanY2+30);
-      g2.addColorStop(0,'rgba(232,112,64,0)');g2.addColorStop(0.5,'rgba(232,112,64,0.06)');g2.addColorStop(1,'rgba(232,112,64,0)');
-      ctx.fillStyle=g2;ctx.fillRect(0,scanY2-30,W,60);
+      paths.forEach(([a,b],pi)=>{
+        const phase=t*2+pi*0.4,prog=(Math.sin(phase)+1)/2;
+        const ax=sephiroth[a][0],ay=sephiroth[a][1],bx=sephiroth[b][0],by=sephiroth[b][1];
+        const gx=ax+(bx-ax)*prog,gy=ay+(by-ay)*prog;
+        ctx.strokeStyle='#E8C96A';ctx.lineWidth=0.5;ctx.globalAlpha=0.18+0.07*Math.sin(phase);
+        ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(bx,by);ctx.stroke();
+        ctx.beginPath();ctx.arc(gx,gy,2.5,0,Math.PI*2);ctx.fillStyle='#FFE890';
+        ctx.globalAlpha=0.55*Math.sin(phase+0.5);ctx.fill();
+      });ctx.restore();
+      ctx.save();sephiroth.forEach(([x,y],i)=>{
+        const pulse=Math.sin(t*2.5+i*0.8),r=3+1.5*pulse;
+        ctx.globalAlpha=0.3+0.15*pulse;ctx.fillStyle='#F8E070';ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();
+        ctx.globalAlpha=0.08+0.05*pulse;ctx.strokeStyle='#FFE890';ctx.lineWidth=8+4*pulse;
+        ctx.beginPath();ctx.arc(x,y,r+4,0,Math.PI*2);ctx.stroke();
+      });ctx.restore();
+      ctx.save();[320,220,130,60,20].forEach((r,i)=>{
+        const rot=t*(i%2===0?1:-1)*0.15;
+        ctx.globalAlpha=0.12+0.04*Math.sin(t+i);ctx.strokeStyle='#E8C96A';ctx.lineWidth=i===0?1.2:0.6;
+        ctx.beginPath();ctx.arc(W/2,H/2,r,0,Math.PI*2);ctx.stroke();
+        if(i<3){ctx.save();ctx.translate(W/2,H/2);ctx.rotate(rot);ctx.globalAlpha=0.08;ctx.setLineDash([8,r*0.3]);
+        ctx.beginPath();ctx.arc(0,0,r,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);ctx.restore();}
+      });ctx.restore();
+      ctx.save();ctx.translate(W/2,H/2);ctx.rotate(t*0.08);ctx.strokeStyle='#F8E070';ctx.lineWidth=0.8;ctx.globalAlpha=0.12;
+      [[0,2,4],[1,3,5]].forEach(idx=>{ctx.beginPath();idx.forEach((k,i)=>{const a=Math.PI/3*k-Math.PI/2;const px=100*Math.cos(a),py=100*Math.sin(a);i===0?ctx.moveTo(px,py):ctx.lineTo(px,py);});ctx.closePath();ctx.stroke();});ctx.restore();
+      ctx.save();ctx.globalAlpha=0.08;ctx.lineWidth=0.8;ctx.strokeStyle='#E8C96A';
+      [[0,0,W,H],[W,0,0,H],[W/2,0,W/2,H],[0,H/2,W,H/2]].forEach(([x1,y1,x2,y2])=>{ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();});ctx.restore();
+      ctx.save();ctx.globalAlpha=0.06;ctx.lineWidth=0.4;ctx.setLineDash([3,9]);ctx.strokeStyle='#E8C96A';
+      [H*0.17,H*0.33,H*0.67,H*0.83].forEach(y=>{ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();});
+      [W*0.17,W*0.33,W*0.67,W*0.83].forEach(x=>{ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();});
+      ctx.setLineDash([]);ctx.restore();
+      ctx.save();ctx.translate(W/2,H/2);ctx.rotate(t*0.04);ctx.globalAlpha=0.08;ctx.lineWidth=0.9;ctx.strokeStyle='#FFE890';
+      [[0,-160,160,false],[0,160,160,true]].forEach(([ox,oy,r,inv])=>{
+        ctx.beginPath();for(let i=0;i<3;i++){const a=Math.PI/180*(120*i+(inv?180:270));ctx.lineTo(ox+r*Math.cos(a),oy+r*Math.sin(a));}
+        ctx.closePath();ctx.stroke();
+      });ctx.restore();
+      ctx.save();ctx.globalAlpha=0.3+0.15*Math.sin(t*1.5);ctx.lineWidth=1;ctx.strokeStyle='#E8C96A';
+      [[0,0,160,0,0,160],[W,0,W-160,0,W,160],[0,H,160,H,0,H-160],[W,H,W-160,H,W,H-160]].forEach(([x1,y1,x2,y2,x3,y3])=>{ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.lineTo(x3,y3);ctx.stroke();});ctx.restore();
+      ctx.save();const scanY=(t*80)%H;const scanGrad=ctx.createLinearGradient(0,scanY-40,0,scanY+40);
+      scanGrad.addColorStop(0,'rgba(248,224,112,0)');scanGrad.addColorStop(0.5,'rgba(248,224,112,0.04)');scanGrad.addColorStop(1,'rgba(248,224,112,0)');
+      ctx.fillStyle=scanGrad;ctx.fillRect(0,scanY-40,W,80);ctx.restore();
+    }
+ 
+    // ===== ロンギヌスの槍 =====
+    if(window.kosBg === 'lance'){
+      const time = Date.now();
+      const pulse = 1 + Math.sin(time/600)*0.03;
+      const cx = W/2, cy = H/2;
+ 
+      // -----------------------------------------------
+      // 暗い背景（地獄の門・赤黒）
+      // -----------------------------------------------
+      ctx.fillStyle='rgba(3,0,0,1)';
+      ctx.fillRect(0,0,W,H);
+ 
+      ctx.save();
+      ctx.translate(cx, cy);
+ 
+      // 中心から広がる暗赤グラデ
+      const bgGrad=ctx.createRadialGradient(0,0,0,0,0,Math.max(W,H)*0.85);
+      bgGrad.addColorStop(0,'rgba(90,8,8,1)');
+      bgGrad.addColorStop(0.3,'rgba(55,4,4,1)');
+      bgGrad.addColorStop(0.6,'rgba(22,2,2,1)');
+      bgGrad.addColorStop(1,'rgba(3,0,0,1)');
+      ctx.globalAlpha=1;ctx.fillStyle=bgGrad;
+      ctx.beginPath();ctx.arc(0,0,Math.max(W,H)*0.85,0,Math.PI*2);ctx.fill();
+ 
+      // 渦巻き放射線（周回）
+      const numLines=60;
+      for(let i=0;i<numLines;i++){
+        const baseAngle=(Math.PI*2/numLines)*i;
+        const angle=baseAngle+t*0.4+Math.sin(baseAngle*3)*0.3;
+        const len=Math.max(W,H)*(0.5+0.35*Math.abs(Math.cos(baseAngle*2)));
+        const alpha=0.12+0.07*Math.abs(Math.sin(baseAngle*4+t));
+        const lineGrad=ctx.createLinearGradient(0,0,Math.cos(angle)*len,Math.sin(angle)*len);
+        lineGrad.addColorStop(0,'rgba(200,20,20,0)');
+        lineGrad.addColorStop(0.25,`rgba(180,12,12,${alpha*2.5})`);
+        lineGrad.addColorStop(0.65,`rgba(120,6,6,${alpha})`);
+        lineGrad.addColorStop(1,'rgba(20,0,0,0)');
+        ctx.globalAlpha=1;ctx.strokeStyle=lineGrad;
+        ctx.lineWidth=1.5+Math.sin(baseAngle*5)*0.8;
+        ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(Math.cos(angle)*len,Math.sin(angle)*len);ctx.stroke();
+      }
+ 
+      // 周回する楕円同心円
+      for(let ring=0;ring<14;ring++){
+        const r=(ring+1)*Math.max(W,H)*0.068;
+        const rot=t*(ring%2===0?0.09:-0.07)*(1+ring*0.12);
+        const scaleX=1.0+ring*0.045;
+        const scaleY=0.52-ring*0.008;
+        const alpha=0.18-ring*0.009;
+        if(alpha<=0) continue;
+        ctx.save();ctx.rotate(rot);ctx.scale(scaleX,scaleY);
+        ctx.globalAlpha=alpha;
+        ctx.strokeStyle=ring<7
+          ?`rgba(220,${18+ring*6},${8+ring*3},1)`
+          :`rgba(130,${8+ring*3},4,1)`;
+        ctx.lineWidth=ring===0?3:1.4;
+        ctx.beginPath();ctx.arc(0,0,r,0,Math.PI*2);ctx.stroke();
+        ctx.restore();
+      }
+ 
+      // 中央コア（青白→紫発光）
+      const coreR=Math.min(W,H)*0.08;
+      for(let col=0;col<14;col++){
+        const cx2=(col-6.5)*coreR*0.17;
+        const ch=coreR*(1.3+0.3*Math.sin(time/300+col));
+        const colGrad=ctx.createLinearGradient(cx2,-ch,cx2,ch*0.3);
+        colGrad.addColorStop(0,'rgba(200,220,255,0)');
+        colGrad.addColorStop(0.2,`rgba(180,200,255,${0.18+0.08*Math.sin(time/200+col)})`);
+        colGrad.addColorStop(0.6,`rgba(140,80,220,${0.22+0.06*Math.sin(time/400+col)})`);
+        colGrad.addColorStop(1,'rgba(100,20,160,0)');
+        ctx.globalAlpha=1;ctx.fillStyle=colGrad;
+        ctx.fillRect(cx2-coreR*0.08,-ch,coreR*0.16,ch*1.3);
+      }
+      const cg=ctx.createRadialGradient(0,0,0,0,0,coreR*1.3);
+      cg.addColorStop(0,'rgba(245,245,255,0.95)');
+      cg.addColorStop(0.15,'rgba(180,160,255,0.75)');
+      cg.addColorStop(0.4,'rgba(120,60,200,0.45)');
+      cg.addColorStop(0.7,'rgba(80,10,120,0.18)');
+      cg.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.globalAlpha=0.8+0.15*Math.sin(time/350);
+      ctx.fillStyle=cg;ctx.beginPath();ctx.arc(0,0,coreR*1.3,0,Math.PI*2);ctx.fill();
+ 
+      // 天使の羽紋章
+      const wingAlpha=0.20+0.06*Math.sin(time/700);
+      for(let side=-1;side<=1;side+=2){
+        ctx.save();ctx.scale(side,1);
+        for(let w=0;w<10;w++){
+          const wa=0.1+(w/10)*Math.PI*0.75;
+          const wlen=coreR*(2.4+w*0.3);
+          const wx=Math.cos(wa)*wlen,wy=Math.sin(wa)*wlen*0.5;
+          ctx.globalAlpha=wingAlpha*(1-w*0.07);
+          ctx.strokeStyle='rgba(255,230,200,0.9)';
+          ctx.lineWidth=1.6-w*0.1;
+          ctx.beginPath();ctx.moveTo(coreR*0.3,0);ctx.quadraticCurveTo(wx*0.5,wy*0.4,wx,wy);ctx.stroke();
+        }
+        ctx.restore();
+      }
+      ctx.globalAlpha=0.22;ctx.strokeStyle='rgba(200,60,60,0.9)';ctx.lineWidth=2.5;
+      ctx.beginPath();ctx.arc(0,0,coreR*2.0,0,Math.PI*2);ctx.stroke();
+      ctx.restore();
+ 
+      // -----------------------------------------------
+      // 槍本体（右上→左下・画面端から端）
+      // -----------------------------------------------
+      const angle = Math.PI * 0.22;
+      const dx = Math.cos(angle), dy = Math.sin(angle);
+ 
+      // 画面端交点
+      let tMax = Infinity;
+      if(dx>0) tMax=Math.min(tMax,(W-cx)/dx);
+      if(dx<0) tMax=Math.min(tMax,-cx/dx);
+      if(dy>0) tMax=Math.min(tMax,(H-cy)/dy);
+      if(dy<0) tMax=Math.min(tMax,-cy/dy);
+ 
+      // 先端余白：Y字二股が画面内に収まるだけ確保
+      const forkLen   = Math.min(W,H) * 0.18;  // 二股の長さ（画面サイズ比）
+      const forkSpread= Math.min(W,H) * 0.12;  // 二股の開き幅
+      const tipMargin = forkLen + 20;           // 先端余白
+ 
+      const tipEnd  = tMax - tipMargin;  // 槍本体の先端
+      const tailEnd = -tMax;             // 槍の末端
+ 
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(angle);
+ 
+      // 外側紫グロー
+      const glowGrad=ctx.createLinearGradient(tailEnd,0,tMax,0);
+      glowGrad.addColorStop(0,'rgba(120,0,180,0)');
+      glowGrad.addColorStop(0.08,'rgba(160,0,240,0.25)');
+      glowGrad.addColorStop(0.5,'rgba(200,30,255,0.38)');
+      glowGrad.addColorStop(0.92,'rgba(160,0,240,0.25)');
+      glowGrad.addColorStop(1,'rgba(120,0,180,0)');
+      ctx.globalAlpha=0.75+0.15*Math.sin(time/500);
+      ctx.fillStyle=glowGrad;
+      ctx.fillRect(tailEnd,-90,(tMax-tailEnd),180);
+ 
+      // 槍の芯（極太・赤）
+      ctx.globalAlpha=0.95;
+      ctx.strokeStyle='#C01020';
+      ctx.lineWidth=48*pulse;  // さらに太く
+      ctx.lineCap='butt';
+      ctx.shadowBlur=50;ctx.shadowColor='#FF1840';
+      ctx.beginPath();ctx.moveTo(tailEnd,0);ctx.lineTo(tipEnd,0);ctx.stroke();
+ 
+      // 中央ハイライト（明るい赤）
+      ctx.globalAlpha=0.5;
+      ctx.strokeStyle='rgba(255,120,130,0.9)';
+      ctx.lineWidth=12*pulse;ctx.shadowBlur=15;ctx.shadowColor='#FFAAAA';
+      ctx.beginPath();ctx.moveTo(tailEnd,0);ctx.lineTo(tipEnd,0);ctx.stroke();
+ 
+      // 二重螺旋（軸付き）
+      ctx.globalAlpha=0.45;
+      ctx.strokeStyle='rgba(255,60,60,0.6)';
+      ctx.lineWidth=2;ctx.shadowBlur=5;
+      ctx.setLineDash([14,7]);
+      ctx.beginPath();ctx.moveTo(tailEnd,0);ctx.lineTo(tipEnd,0);ctx.stroke();
+      ctx.setLineDash([]);
+ 
+      const amplitude=32,freq=0.020,rotSpeed=0.0022;
+ 
+      ctx.shadowBlur=22;ctx.shadowColor='#FF40A0';
+      ctx.strokeStyle='#FF1838';ctx.lineWidth=10*pulse;ctx.globalAlpha=0.95;
+      ctx.beginPath();
+      for(let x=tailEnd;x<=tipEnd;x+=3){
+        const y=Math.sin(x*freq+time*rotSpeed)*amplitude*pulse;
+        x===Math.ceil(tailEnd)?ctx.moveTo(x,y):ctx.lineTo(x,y);
+      }
+      ctx.stroke();
+      ctx.beginPath();
+      for(let x=tailEnd;x<=tipEnd;x+=3){
+        const y=Math.sin(x*freq+time*rotSpeed+Math.PI)*amplitude*pulse;
+        x===Math.ceil(tailEnd)?ctx.moveTo(x,y):ctx.lineTo(x,y);
+      }
+      ctx.stroke();
+ 
+      // 連結横線
+      const step2=(tipEnd-tailEnd)/55;
+      for(let x=tailEnd;x<=tipEnd;x+=step2){
+        const y1=Math.sin(x*freq+time*rotSpeed)*amplitude*pulse;
+        const y2=Math.sin(x*freq+time*rotSpeed+Math.PI)*amplitude*pulse;
+        const dist=Math.abs(y1-y2);
+        ctx.strokeStyle=`rgba(255,100,150,${0.28+0.32*(dist/(amplitude*2))})`;
+        ctx.lineWidth=1.8+2*(dist/(amplitude*2));
+        ctx.globalAlpha=0.5;ctx.shadowBlur=4;
+        ctx.beginPath();ctx.moveTo(x,y1);ctx.lineTo(x,y2);ctx.stroke();
+      }
+ 
+      // -----------------------------------------------
+      // Y字先端（画像参照：根元1本→大きく開く2股）
+      // -----------------------------------------------
+      // 根元から先端に向かって太さが変化するY字
+ 
+      // 二股A（上方向）の太い幹
+      ctx.globalAlpha=1;
+      ctx.lineCap='round';
+      ctx.shadowBlur=45;ctx.shadowColor='#FF2050';
+ 
+      // 外側グロー（二股A）
+      ctx.strokeStyle='rgba(255,40,80,0.4)';
+      ctx.lineWidth=58*pulse;
+      ctx.beginPath();
+      ctx.moveTo(tipEnd,0);
+      ctx.quadraticCurveTo(
+        tipEnd+forkLen*0.42, -forkSpread*0.55,
+        tipEnd+forkLen,      -forkSpread
+      );
+      ctx.stroke();
+ 
+      // 外側グロー（二股B）
+      ctx.beginPath();
+      ctx.moveTo(tipEnd,0);
+      ctx.quadraticCurveTo(
+        tipEnd+forkLen*0.42,  forkSpread*0.55,
+        tipEnd+forkLen,       forkSpread
+      );
+      ctx.stroke();
+ 
+      // 芯（二股A）
+      ctx.strokeStyle='#CC1020';
+      ctx.lineWidth=44*pulse;
+      ctx.shadowBlur=35;
+      ctx.beginPath();
+      ctx.moveTo(tipEnd,0);
+      ctx.quadraticCurveTo(
+        tipEnd+forkLen*0.42, -forkSpread*0.55,
+        tipEnd+forkLen,      -forkSpread
+      );
+      ctx.stroke();
+ 
+      // 芯（二股B）
+      ctx.beginPath();
+      ctx.moveTo(tipEnd,0);
+      ctx.quadraticCurveTo(
+        tipEnd+forkLen*0.42,  forkSpread*0.55,
+        tipEnd+forkLen,       forkSpread
+      );
+      ctx.stroke();
+ 
+      // ハイライト（二股A）
+      ctx.strokeStyle='rgba(255,160,170,0.75)';
+      ctx.lineWidth=12*pulse;ctx.shadowBlur=12;ctx.shadowColor='#FFCCCC';
+      ctx.beginPath();
+      ctx.moveTo(tipEnd,0);
+      ctx.quadraticCurveTo(
+        tipEnd+forkLen*0.42, -forkSpread*0.55,
+        tipEnd+forkLen,      -forkSpread
+      );
+      ctx.stroke();
+ 
+      // ハイライト（二股B）
+      ctx.beginPath();
+      ctx.moveTo(tipEnd,0);
+      ctx.quadraticCurveTo(
+        tipEnd+forkLen*0.42,  forkSpread*0.55,
+        tipEnd+forkLen,       forkSpread
+      );
+      ctx.stroke();
+ 
+      // 先端の鋭い尖り（上）
+      ctx.strokeStyle='rgba(255,230,230,0.98)';
+      ctx.lineWidth=6;ctx.shadowBlur=14;ctx.shadowColor='#FFEEEE';
+      ctx.beginPath();
+      ctx.moveTo(tipEnd+forkLen-10, -forkSpread+forkSpread*0.15);
+      ctx.lineTo(tipEnd+forkLen+forkLen*0.15, -forkSpread-forkSpread*0.18);
+      ctx.lineTo(tipEnd+forkLen+forkLen*0.10, -forkSpread+forkSpread*0.22);
+      ctx.stroke();
+ 
+      // 先端の鋭い尖り（下）
+      ctx.beginPath();
+      ctx.moveTo(tipEnd+forkLen-10,  forkSpread-forkSpread*0.15);
+      ctx.lineTo(tipEnd+forkLen+forkLen*0.15,  forkSpread+forkSpread*0.18);
+      ctx.lineTo(tipEnd+forkLen+forkLen*0.10,  forkSpread-forkSpread*0.22);
+      ctx.stroke();
+ 
       ctx.restore();
     }
+ 
+    // ===== セフィロトの樹（宇宙背景・虹色）=====
+    if(window.kosBg === 'sephiroth'){
+      const time=Date.now();
+      const hue=(time/50)%360;
+ 
+      // ---- 宇宙背景 ----
+      // 深宇宙グラデ（黒→深紺→深紫）
+      const spaceGrad=ctx.createRadialGradient(W*0.5,H*0.3,0,W*0.5,H*0.5,Math.max(W,H)*0.85);
+      spaceGrad.addColorStop(0,'rgba(8,5,25,1)');
+      spaceGrad.addColorStop(0.35,'rgba(4,3,18,1)');
+      spaceGrad.addColorStop(0.7,'rgba(2,1,10,1)');
+      spaceGrad.addColorStop(1,'rgba(0,0,5,1)');
+      ctx.globalAlpha=1;ctx.fillStyle=spaceGrad;ctx.fillRect(0,0,W,H);
+ 
+      // 星雲（nebula・ふわっとした色彩）
+      NEBULAE.forEach(nb=>{
+        ctx.save();
+        const rx=nb.rxR*W, ry=nb.ryR*H;
+        const ng=ctx.createRadialGradient(nb.x*W,nb.y*H,0,nb.x*W,nb.y*H,rx);
+        ng.addColorStop(0,`hsla(${nb.hue},80%,60%,${nb.alpha*2})`);
+        ng.addColorStop(0.4,`hsla(${nb.hue+30},70%,50%,${nb.alpha})`);
+        ng.addColorStop(1,'rgba(0,0,0,0)');
+        ctx.globalAlpha=1;ctx.fillStyle=ng;
+        ctx.beginPath();ctx.ellipse(nb.x*W,nb.y*H,rx,ry,0.3,0,Math.PI*2);ctx.fill();
+        ctx.restore();
+      });
+ 
+      // 天の川（帯状）
+      ctx.save();
+      ctx.translate(W*0.5,H*0.5);
+      ctx.rotate(-0.35);
+      ctx.translate(-W*0.5,-H*0.5);
+      MILKYWAY.forEach(s=>{
+        ctx.globalAlpha=s.alpha;
+        ctx.fillStyle=`rgba(200,210,255,1)`;
+        ctx.beginPath();ctx.arc(s.x*W,s.y*H,s.r,0,Math.PI*2);ctx.fill();
+      });
+      ctx.restore();
+ 
+      // 通常の星（瞬き）
+      STARS.forEach(s=>{
+        s.twinkle+=s.twinkleSpeed;
+        const a=s.alpha*(0.55+0.45*Math.sin(s.twinkle));
+        ctx.globalAlpha=a;
+        ctx.fillStyle=s.color;
+        ctx.shadowBlur=s.r>1.2?6:0;
+        ctx.shadowColor=s.color;
+        ctx.beginPath();ctx.arc(s.x*W,s.y*H,s.r,0,Math.PI*2);ctx.fill();
+      });
+ 
+      // 輝く大きな星（十字光芒付き）
+      BIG_STARS.forEach(s=>{
+        s.twinkle+=s.twinkleSpeed;
+        const a=s.alpha*(0.6+0.4*Math.sin(s.twinkle));
+        const sx=s.x*W, sy=s.y*H;
+        // グロー
+        const sg=ctx.createRadialGradient(sx,sy,0,sx,sy,s.r*5);
+        sg.addColorStop(0,s.color.replace('1)','0.7)'));
+        sg.addColorStop(1,'rgba(0,0,0,0)');
+        ctx.globalAlpha=a*0.6;ctx.fillStyle=sg;
+        ctx.beginPath();ctx.arc(sx,sy,s.r*5,0,Math.PI*2);ctx.fill();
+        // 本体
+        ctx.globalAlpha=a;ctx.fillStyle=s.color;
+        ctx.shadowBlur=12;ctx.shadowColor=s.color;
+        ctx.beginPath();ctx.arc(sx,sy,s.r,0,Math.PI*2);ctx.fill();
+        // 十字光芒
+        const rayLen=s.r*12;
+        ctx.globalAlpha=a*0.5;
+        ctx.strokeStyle=s.color;ctx.lineWidth=0.7;ctx.shadowBlur=4;
+        [[0,1],[1,0],[0.7,0.7],[-0.7,0.7]].forEach(([dx2,dy2])=>{
+          ctx.beginPath();ctx.moveTo(sx-dx2*rayLen,sy-dy2*rayLen);ctx.lineTo(sx+dx2*rayLen,sy+dy2*rayLen);ctx.stroke();
+        });
+      });
+      ctx.shadowBlur=0;
+ 
+      // 惑星
+      PLANETS.forEach(p=>{
+        const px=p.x*W, py=p.y*H;
+        ctx.save();
+        ctx.translate(px,py);
+ 
+        // リング（後ろ半分を先に描く）
+        if(p.rings){
+          ctx.save();
+          ctx.rotate(p.ringTilt);
+          ctx.scale(1,0.3);
+          ctx.strokeStyle=`hsla(${p.hue+40},60%,70%,0.35)`;
+          ctx.lineWidth=p.r*0.7;
+          ctx.globalAlpha=0.4;
+          ctx.beginPath();ctx.arc(0,0,p.r*1.9,Math.PI,Math.PI*2);ctx.stroke();
+          ctx.restore();
+        }
+ 
+        // 惑星本体
+        const pg=ctx.createRadialGradient(-p.r*0.3,-p.r*0.3,p.r*0.1,0,0,p.r);
+        pg.addColorStop(0,`hsl(${p.hue},70%,80%)`);
+        pg.addColorStop(0.5,`hsl(${p.hue},60%,50%)`);
+        pg.addColorStop(1,`hsl(${p.hue},40%,20%)`);
+        ctx.globalAlpha=0.92;ctx.fillStyle=pg;
+        ctx.shadowBlur=p.r*1.5;ctx.shadowColor=`hsla(${p.hue},70%,60%,0.5)`;
+        ctx.beginPath();ctx.arc(0,0,p.r,0,Math.PI*2);ctx.fill();
+ 
+        // 大気光（縁取り）
+        const atmG=ctx.createRadialGradient(0,0,p.r*0.85,0,0,p.r*1.15);
+        atmG.addColorStop(0,'rgba(0,0,0,0)');
+        atmG.addColorStop(0.6,`hsla(${p.hue},80%,65%,0.12)`);
+        atmG.addColorStop(1,'rgba(0,0,0,0)');
+        ctx.globalAlpha=0.9;ctx.fillStyle=atmG;
+        ctx.beginPath();ctx.arc(0,0,p.r*1.15,0,Math.PI*2);ctx.fill();
+ 
+        // リング前半分
+        if(p.rings){
+          ctx.save();
+          ctx.rotate(p.ringTilt);
+          ctx.scale(1,0.3);
+          ctx.strokeStyle=`hsla(${p.hue+40},60%,70%,0.5)`;
+          ctx.lineWidth=p.r*0.7;
+          ctx.globalAlpha=0.5;
+          ctx.beginPath();ctx.arc(0,0,p.r*1.9,0,Math.PI);ctx.stroke();
+          ctx.restore();
+        }
+ 
+        // 衛星（月）
+        if(p.moons>0){
+          const moonAngle=t*0.8;
+          const moonR=p.r*0.22;
+          const moonDist=p.r*2.2;
+          const mx=Math.cos(moonAngle)*moonDist;
+          const my=Math.sin(moonAngle)*moonDist*0.55;
+          const moonG=ctx.createRadialGradient(mx-moonR*0.3,my-moonR*0.3,moonR*0.1,mx,my,moonR);
+          moonG.addColorStop(0,'rgba(220,220,220,1)');
+          moonG.addColorStop(1,'rgba(100,100,110,1)');
+          ctx.globalAlpha=0.85;ctx.fillStyle=moonG;ctx.shadowBlur=4;ctx.shadowColor='rgba(200,200,255,0.5)';
+          ctx.beginPath();ctx.arc(mx,my,moonR,0,Math.PI*2);ctx.fill();
+        }
+ 
+        ctx.restore();
+      });
+ 
+      // 流れ星（ランダムに出現）
+      if(Math.sin(t*7)*Math.sin(t*13)>0.92){
+        const ssx=(Math.sin(t*5)*0.5+0.5)*W;
+        const ssy=(Math.sin(t*3)*0.3+0.1)*H;
+        const ssLen=W*0.08;
+        const ssAngle=Math.PI*0.3;
+        const ssGrad=ctx.createLinearGradient(ssx,ssy,ssx+Math.cos(ssAngle)*ssLen,ssy+Math.sin(ssAngle)*ssLen);
+        ssGrad.addColorStop(0,'rgba(255,255,255,0.9)');
+        ssGrad.addColorStop(1,'rgba(255,255,255,0)');
+        ctx.globalAlpha=0.85;ctx.strokeStyle=ssGrad;ctx.lineWidth=1.5;
+        ctx.beginPath();ctx.moveTo(ssx,ssy);ctx.lineTo(ssx+Math.cos(ssAngle)*ssLen,ssy+Math.sin(ssAngle)*ssLen);ctx.stroke();
+      }
+ 
+      // セフィロトの樹本体
+      const marginX=W*0.10,marginY=H*0.03;
+      const usableW=W-marginX*2,usableH=H-marginY*2;
+      const nodeDef=[
+        [0.5,0.02],[0.22,0.16],[0.78,0.16],
+        [0.18,0.38],[0.82,0.38],[0.5,0.50],
+        [0.18,0.65],[0.82,0.65],[0.5,0.80],[0.5,0.97]
+      ];
+      const nodes=nodeDef.map(([nx,ny])=>[marginX+nx*usableW,marginY+ny*usableH]);
+      const links=[[0,1],[0,2],[1,2],[1,3],[2,4],[1,5],[2,5],[3,4],[3,5],[4,5],[3,6],[4,7],[5,6],[5,7],[6,7],[6,8],[7,8],[8,9]];
+      const sephirotNames=['כֶּתֶר','חָכְמָה','בִּינָה','חֶסֶד','גְּבוּרָה','תִּפְאֶרֶת','נֶצַח','הוֹד','יְסוֹד','מַלְכוּת'];
+      const latinNames=['Kether','Chokmah','Binah','Chesed','Geburah','Tiphareth','Netzach','Hod','Yesod','Malkuth'];
+ 
+      // 天使の羽
+      const wingCX=W/2,wingCY=H*0.5;
+      for(let side=-1;side<=1;side+=2){
+        ctx.save();ctx.translate(wingCX,wingCY);ctx.scale(side,1);
+        for(let w=0;w<10;w++){
+          const wa=0.08+(w/10)*Math.PI*0.8;
+          const wlen=W*(0.28+w*0.025);
+          const wx=Math.cos(wa)*wlen,wy=-Math.sin(wa)*wlen*0.35;
+          ctx.globalAlpha=0.14+0.04*Math.sin(time/800+w);
+          ctx.strokeStyle=`hsl(${(hue+w*20)%360},65%,70%)`;
+          ctx.lineWidth=2-w*0.12;
+          ctx.beginPath();ctx.moveTo(0,0);ctx.quadraticCurveTo(wx*0.5,wy*0.5,wx,wy);ctx.stroke();
+          for(let f=1;f<5;f++){
+            const ft=f/5,fx=wx*ft,fy=wy*ft,flen=W*0.04*(1-ft*0.4);
+            ctx.globalAlpha=0.06;ctx.lineWidth=0.7;
+            ctx.beginPath();ctx.moveTo(fx,fy);ctx.lineTo(fx+Math.cos(wa+1.2)*flen,fy+Math.sin(wa+1.2)*flen*0.5);ctx.stroke();
+          }
+        }
+        ctx.restore();
+      }
+ 
+      // パスの描画
+      links.forEach(([a,b],i)=>{
+        const lhue=(hue+i*20)%360;
+        ctx.strokeStyle=`hsl(${lhue},75%,65%)`;
+        ctx.shadowBlur=18;ctx.shadowColor=`hsl(${lhue},85%,70%)`;
+        ctx.globalAlpha=0.6+0.1*Math.sin(time/600+i);
+        ctx.lineWidth=2.5;
+        ctx.beginPath();ctx.moveTo(nodes[a][0],nodes[a][1]);ctx.lineTo(nodes[b][0],nodes[b][1]);ctx.stroke();
+      });
+ 
+      // ノード
+      const nodeR=Math.min(W,H)*0.022;
+      nodes.forEach(([x,y],i)=>{
+        const nhue=(hue+i*36)%360;
+        const p2=1+Math.sin(time/500+i*0.7)*0.15;
+        const grad=ctx.createRadialGradient(x,y,0,x,y,nodeR*3*p2);
+        grad.addColorStop(0,`hsla(${nhue},90%,80%,0.6)`);
+        grad.addColorStop(0.5,`hsla(${nhue},80%,60%,0.25)`);
+        grad.addColorStop(1,`hsla(${nhue},70%,50%,0)`);
+        ctx.globalAlpha=0.9;ctx.fillStyle=grad;
+        ctx.beginPath();ctx.arc(x,y,nodeR*3*p2,0,Math.PI*2);ctx.fill();
+        ctx.globalAlpha=0.95;
+        ctx.beginPath();ctx.arc(x,y,nodeR*p2,0,Math.PI*2);
+        ctx.fillStyle=`hsl(${nhue},80%,78%)`;
+        ctx.shadowBlur=18;ctx.shadowColor=`hsl(${nhue},90%,88%)`;
+        ctx.fill();
+        ctx.strokeStyle=`hsl(${nhue},90%,92%)`;
+        ctx.lineWidth=2;ctx.stroke();
+ 
+        const fontSize=Math.max(14,Math.min(W,H)*0.025);
+        const textY=y-nodeR*2.4;
+        ctx.globalAlpha=0.55;
+        ctx.fillStyle='rgba(0,10,40,0.7)';
+        ctx.beginPath();
+        const tw=fontSize*sephirotNames[i].length*0.65;
+        ctx.roundRect(x-tw/2-4,textY-fontSize+2,tw+8,fontSize+4,4);
+        ctx.fill();
+        ctx.globalAlpha=0.95;
+        ctx.fillStyle=`hsl(${nhue},85%,88%)`;
+        ctx.font=`bold ${fontSize}px serif`;
+        ctx.textAlign='center';
+        ctx.shadowBlur=8;ctx.shadowColor='rgba(0,0,0,0.8)';
+        ctx.fillText(sephirotNames[i],x,textY);
+ 
+        const fontSizeL=Math.max(10,Math.min(W,H)*0.016);
+        const latinY=y+nodeR*2.8;
+        ctx.globalAlpha=0.45;
+        ctx.fillStyle='rgba(0,10,40,0.65)';
+        ctx.beginPath();
+        const tw2=fontSizeL*latinNames[i].length*0.62;
+        ctx.roundRect(x-tw2/2-3,latinY-fontSizeL+1,tw2+6,fontSizeL+3,3);
+        ctx.fill();
+        ctx.globalAlpha=0.85;
+        ctx.fillStyle='rgba(220,240,255,0.95)';
+        ctx.font=`${fontSizeL}px serif`;
+        ctx.shadowBlur=4;ctx.shadowColor='rgba(0,0,20,0.9)';
+        ctx.fillText(latinNames[i],x,latinY);
+      });
+ 
+      // 外周文字
+      const outerTexts=['Sephira I','Canalis','Tabula','Moirai','Porta Luci','Sephira II','Mundus','Corona','Dalith','Sephira III'];
+      outerTexts.forEach((txt,i)=>{
+        const a=Math.PI*2/outerTexts.length*i+t*0.012;
+        const r=Math.min(W,H)*0.47;
+        const tx=W/2+Math.cos(a)*r,ty=H/2+Math.sin(a)*r;
+        ctx.save();ctx.translate(tx,ty);ctx.rotate(a+Math.PI/2);
+        const fs=Math.max(11,Math.min(W,H)*0.015);
+        ctx.globalAlpha=0.7;
+        ctx.fillStyle='rgba(0,10,50,0.6)';
+        ctx.font=`${fs}px serif`;ctx.textAlign='center';
+        const tw3=fs*txt.length*0.6;
+        ctx.beginPath();ctx.roundRect(-tw3/2-3,-fs+1,tw3+6,fs+3,3);ctx.fill();
+        ctx.globalAlpha=0.85;
+        ctx.fillStyle=`hsl(${(hue+i*36)%360},70%,88%)`;
+        ctx.shadowBlur=4;ctx.shadowColor='rgba(0,0,30,0.8)';
+        ctx.fillText(txt,0,0);
+        ctx.restore();
+      });
+    }
+ 
     requestAnimationFrame(draw);
   }
-  draw();
+　draw();
 })();
 </script>
 <script src="https://unpkg.com/mammoth@1.6.0/mammoth.browser.min.js"></script>
@@ -723,8 +1328,38 @@ function KnowledgeCard({entry,onDelete,onJumpToInput,onUpdateUserMissing,onMoveT
         onCancel={()=>{setShowScopeModal(false);setPendingFeedback(null);}}
         projects={allProjects||[]} folders={folders||{}}/>
 
-      <div style={{background:'rgba(28,28,28,0.97)',border:'1px solid var(--border)',borderRadius:10,overflow:'hidden',marginBottom:10}}>
-        <div style={{padding:'10px 12px',display:'flex',alignItems:'flex-start',gap:8}}>
+      <div style={{background:'var(--dark2)',border:'1px solid var(--border)',borderRadius:12,padding:16,marginBottom:12}}>
+
+        {/* 1. プロジェクト・フォルダ移動パネル（最上部） */}
+        <div style={{marginBottom:14,paddingBottom:10,borderBottom:'1px solid rgba(248,224,112,0.1)'}}>
+          <div style={{display:'flex',flexDirection:'column',gap:8}}>
+            {folders&&folders[entry.project]&&folders[entry.project].length>1&&(
+              <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
+                <span style={{fontSize:10,color:'var(--text3)'}}>📂 フォルダ移動:</span>
+                {folders[entry.project].filter(f=>f!==entry.folder).map(f=>(
+                  <button key={f} onClick={()=>onMoveToProject&&onMoveToProject(entry.id,entry.project,f)}
+                    style={{padding:'2px 8px',background:'rgba(144,192,255,0.08)',border:'1px solid rgba(144,192,255,0.2)',borderRadius:10,color:'#90C0FF',fontSize:10,cursor:'pointer'}}>
+                    → {f}
+                  </button>
+                ))}
+              </div>
+            )}
+            {allProjects&&allProjects.length>1&&(
+              <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
+                <span style={{fontSize:10,color:'var(--text3)'}}>🚚 プロジェクト移動:</span>
+                {allProjects.filter(p=>p!==entry.project).map(p=>(
+                  <button key={p} onClick={()=>onMoveToProject&&onMoveToProject(entry.id,p,'未分類')}
+                    style={{padding:'2px 8px',background:'rgba(248,224,112,0.08)',border:'1px solid rgba(248,224,112,0.2)',borderRadius:10,color:'var(--gold)',fontSize:10,cursor:'pointer'}}>
+                    → {p}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 2. ヘッダー行（題名・削除・開閉） */}
+        <div style={{display:'flex',alignItems:'flex-start',gap:8,marginBottom:6}}>
           <div style={{flex:1,minWidth:0}}>
             <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:3}}>
               {entry.inputType==='update'&&<span style={{fontSize:9,padding:'1px 6px',background:'rgba(112,224,160,0.15)',border:'1px solid rgba(112,224,160,0.35)',borderRadius:10,color:'#70E0A0',flexShrink:0}}>改善版</span>}
@@ -741,19 +1376,18 @@ function KnowledgeCard({entry,onDelete,onJumpToInput,onUpdateUserMissing,onMoveT
                 </div>
               ):(
                 <div style={{display:'flex',alignItems:'center',gap:4,flex:1,minWidth:0}}>
-                  <div onClick={()=>setOpen(!open)} style={{fontSize:14,fontWeight:600,color:'var(--gold)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',cursor:'pointer',flex:1}}>{entry.title}</div>
+                  <div onClick={()=>setOpen(!open)} style={{fontSize:16,fontWeight:700,color:'var(--gold)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',cursor:'pointer',flex:1}}>{entry.title}</div>
                   <button onClick={e=>{e.stopPropagation();setEditTitle(entry.title||'');setEditingTitle(true);}} title="題名を編集"
                     style={{background:'none',border:'none',color:'rgba(248,224,112,0.4)',fontSize:11,padding:'0 2px',cursor:'pointer',lineHeight:1,flexShrink:0}}>✏</button>
                 </div>
               )}
             </div>
-            <div style={{fontSize:11,color:'var(--text3)',marginBottom:4,cursor:'pointer'}} onClick={()=>setOpen(!open)}>
+            <div style={{fontSize:11,color:'var(--text3)',marginBottom:4}}>
               {entry.createdAt?new Date(entry.createdAt).toLocaleDateString('ja-JP'):''}
               {entry.editorName&&<span style={{marginLeft:6,opacity:0.75}}>— ✏️{entry.editorName}</span>}
               {entry.fileName&&<span style={{marginLeft:6,opacity:0.85}}>— {entry.fileName}</span>}
               {comments.length>0&&<span style={{marginLeft:8,fontSize:10,color:'#90C0FF'}}>💬{comments.length}</span>}
             </div>
-            {!open&&<div onClick={()=>setOpen(!open)} style={{fontSize:12,color:'var(--text2)',lineHeight:'1.65',display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden',cursor:'pointer'}}>{entry.summary}</div>}
           </div>
           <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:4,flexShrink:0}}>
             <button onClick={e=>{e.stopPropagation();setConfirmDelete(true);}} style={{background:'none',border:'none',color:'var(--text3)',fontSize:13,padding:'1px 3px',lineHeight:1,opacity:0.7}}>✕</button>
@@ -761,32 +1395,64 @@ function KnowledgeCard({entry,onDelete,onJumpToInput,onUpdateUserMissing,onMoveT
           </div>
         </div>
 
+        {/* 3. サマリー（閉じ時は2行プレビュー） */}
+        {!open&&(
+          <div onClick={()=>setOpen(!open)} style={{fontSize:13,color:'var(--text)',lineHeight:'1.55',display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden',cursor:'pointer',marginBottom:8}}>{entry.summary}</div>
+        )}
+
+        {/* 4. ファイル連携・原文表示ボタン */}
+        <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap',marginBottom:open?8:0}}>
+          {entry.fileUrl&&(
+            <a href={entry.fileUrl} target="_blank" rel="noopener noreferrer"
+              style={{background:'rgba(248,224,112,0.15)',border:'1px solid rgba(248,224,112,0.4)',color:'var(--gold)',fontSize:11,padding:'4px 12px',borderRadius:6,textDecoration:'none',fontWeight:'bold'}}>
+              📄 元のファイルを開く
+            </a>
+          )}
+          <button onClick={()=>setShowOrig(!showOrig)}
+            style={{background:'none',border:'none',color:'var(--text2)',fontSize:11,padding:0,cursor:'pointer'}}>
+            {showOrig?'▲ 原文を隠す':'▼ 原文を表示'}
+          </button>
+        </div>
+
+        {/* 5. 原文エリア */}
+        {showOrig&&(
+          <div style={{marginTop:10,padding:12,background:'rgba(0,0,0,0.3)',borderRadius:8,fontSize:12,color:'var(--text2)',whiteSpace:'pre-wrap',border:'1px solid var(--dark4)'}}>
+            {entry.content}
+          </div>
+        )}
+
+        {/* 6. 展開時の詳細コンテンツ */}
         {open&&(
-          <div style={{padding:'0 12px 12px',borderTop:'1px solid var(--border)'}}>
+          <div style={{borderTop:'1px solid var(--border)',paddingTop:12,marginTop:4}}>
+
             {entry.inputType==='update'&&entry.improvedPoint&&(
-              <div style={{marginTop:10,padding:'7px 10px',background:'rgba(112,224,160,0.07)',border:'1px solid rgba(112,224,160,0.22)',borderRadius:6}}>
+              <div style={{marginBottom:10,padding:'7px 10px',background:'rgba(112,224,160,0.07)',border:'1px solid rgba(112,224,160,0.22)',borderRadius:6}}>
                 <span style={{fontSize:11,color:'#70E0A0',fontWeight:600}}>✏️ 改善点: </span>
                 <span style={{fontSize:12,color:'#A0E8B8'}}>{entry.improvedPoint}</span>
               </div>
             )}
+
             {entry.imageBase64&&(
-              <div style={{marginTop:10,textAlign:'center'}}>
+              <div style={{marginBottom:10,textAlign:'center'}}>
                 <img src={'data:'+(entry.imageMimeType||'image/jpeg')+';base64,'+entry.imageBase64} alt={entry.fileName||'画像'} style={{maxWidth:'100%',maxHeight:300,borderRadius:6,border:'1px solid var(--border)'}}/>
               </div>
             )}
-            <div style={{marginTop:10}}>
+
+            {/* 要約 */}
+            <div style={{marginBottom:10}}>
               <div style={{fontSize:11,color:'var(--gold3)',fontWeight:600,marginBottom:5}}>📝 要約</div>
               <div style={{fontSize:12,color:'var(--text)',lineHeight:'1.8',background:'var(--dark4)',padding:'8px 10px',borderRadius:6}}>{entry.summary}</div>
             </div>
+
             {entry.aiInsight&&(
-              <div style={{marginTop:10,padding:'8px 10px',background:'rgba(144,192,255,0.07)',border:'1px solid rgba(144,192,255,0.22)',borderRadius:6}}>
+              <div style={{marginBottom:10,padding:'8px 10px',background:'rgba(144,192,255,0.07)',border:'1px solid rgba(144,192,255,0.22)',borderRadius:6}}>
                 <div style={{fontSize:11,color:'#90C0FF',fontWeight:600,marginBottom:4}}>🤖 AIの洞察</div>
                 <div style={{fontSize:12,color:'#B8D4FF',lineHeight:'1.8'}}>{entry.aiInsight}</div>
               </div>
             )}
 
-            {/* ===== フィードバック欄 ===== */}
-            <div style={{marginTop:10,padding:'8px 10px',background:'rgba(248,224,112,0.04)',border:'1px solid rgba(248,224,112,0.18)',borderRadius:8}}>
+            {/* フィードバック欄 */}
+            <div style={{marginBottom:10,padding:'8px 10px',background:'rgba(248,224,112,0.04)',border:'1px solid rgba(248,224,112,0.18)',borderRadius:8}}>
               <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:showFeedbackInput?8:0}}>
                 <span style={{fontSize:11,color:'var(--text3)',flex:1}}>この解析の評価</span>
                 <button onClick={()=>{onSaveFeedback&&onSaveFeedback({id:'fb'+Date.now(),entryId:entry.id,entryTitle:entry.title,rating:'good',text:'',scope:'all',targets:[],createdAt:new Date().toISOString()});}}
@@ -812,8 +1478,9 @@ function KnowledgeCard({entry,onDelete,onJumpToInput,onUpdateUserMissing,onMoveT
               )}
             </div>
 
+            {/* 補足をお願いしたい点 */}
             {allMissing.length>0&&(
-              <div style={{marginTop:10}}>
+              <div style={{marginBottom:10}}>
                 <div style={{fontSize:11,color:'#FF9090',fontWeight:600,marginBottom:5}}>⚠ 補足をお願いしたい点</div>
                 <div style={{background:'rgba(255,128,128,0.06)',border:'1px solid rgba(255,128,128,0.22)',borderRadius:6,padding:'8px 10px'}}>
                   {allMissing.map((m,i)=>(
@@ -834,15 +1501,15 @@ function KnowledgeCard({entry,onDelete,onJumpToInput,onUpdateUserMissing,onMoveT
             )}
 
             {entry.encouragement&&(
-              <div style={{marginTop:10,background:'rgba(112,208,160,0.07)',border:'1px solid rgba(112,208,160,0.2)',borderRadius:6,padding:'7px 10px'}}>
+              <div style={{marginBottom:10,background:'rgba(112,208,160,0.07)',border:'1px solid rgba(112,208,160,0.2)',borderRadius:6,padding:'7px 10px'}}>
                 <span style={{fontSize:11,color:'#70E0A0',fontWeight:600}}>💬 </span>
                 <span style={{fontSize:12,color:'#A0E8C0',lineHeight:'1.7'}}>{entry.encouragement}</span>
               </div>
             )}
 
-            {/* 関連リンク（補助金・参考・論文・おすすめサイト） */}
+            {/* 関連リンク */}
             {allLinks.length>0&&(
-              <div style={{marginTop:10}}>
+              <div style={{marginBottom:10}}>
                 <div style={{fontSize:11,color:'#90C0FF',fontWeight:600,marginBottom:5}}>🔗 関連リンク</div>
                 <div style={{display:'flex',flexDirection:'column',gap:4}}>
                   {allLinks.map((item,i)=>(
@@ -861,7 +1528,7 @@ function KnowledgeCard({entry,onDelete,onJumpToInput,onUpdateUserMissing,onMoveT
             )}
 
             {/* コメント欄 */}
-            <div style={{marginTop:10,background:'rgba(144,192,255,0.04)',border:'1px solid rgba(144,192,255,0.18)',borderRadius:8,padding:'8px 10px'}}>
+            <div style={{background:'rgba(144,192,255,0.04)',border:'1px solid rgba(144,192,255,0.18)',borderRadius:8,padding:'8px 10px'}}>
               <div style={{fontSize:11,color:'#90C0FF',fontWeight:600,marginBottom:6,cursor:'pointer',display:'flex',alignItems:'center',gap:5}}
                 onClick={()=>setShowComments(!showComments)}>
                 💬 コメント {comments.length>0&&<span style={{background:'rgba(144,192,255,0.2)',borderRadius:8,padding:'0 6px',fontSize:10}}>{comments.length}</span>}
@@ -894,61 +1561,13 @@ function KnowledgeCard({entry,onDelete,onJumpToInput,onUpdateUserMissing,onMoveT
               )}
             </div>
 
-            {/* 原文リンク表示 */}
-            <div style={{marginTop:10}}>
-              <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
-                {entry.fileUrl ? (
-                  <a href={entry.fileUrl} target="_blank" rel="noopener noreferrer"
-                    style={{background:'rgba(248,224,112,0.15)',border:'1px solid rgba(248,224,112,0.4)',color:'var(--gold)',fontSize:11,padding:'4px 10px',borderRadius:6,textDecoration:'none'}}>
-                    📄 元ファイルを開く
-                  </a>
-                ) : (
-                  <button onClick={()=>setShowOrig(!showOrig)}
-                    style={{background:'none',border:'none',color:'var(--text2)',fontSize:11,padding:0,cursor:'pointer'}}>{showOrig?'▲ 原文を隠す':'▼ 原文を表示'}</button>
-                )}
-                {entry.fileCategory&&entry.fileCategory!=='text'&&(
-                  <span style={{display:'inline-flex',alignItems:'center',gap:3,padding:'2px 8px',background:getFileColor(entry.fileCategory)+'20',border:'1px solid '+getFileColor(entry.fileCategory)+'50',borderRadius:10,fontSize:10,color:getFileColor(entry.fileCategory)}}>
-                    {getFileIcon(entry.fileCategory)} {catLabel[entry.fileCategory]||entry.fileCategory}
-                  </span>
-                )}
-              </div>
-              {showOrig && (
-                <div style={{marginTop:10}}>
-                  {/* フォルダ・プロジェクト移動セクション */}
-                  <div style={{marginTop:12,paddingTop:10,borderTop:'1px solid var(--border)',display:'flex',flexDirection:'column',gap:8}}>
-                    {folders && folders[entry.project] && folders[entry.project].length > 1 && (
-                      <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
-                        <span style={{fontSize:10,color:'var(--text3)'}}>📂 フォルダ:</span>
-                        {folders[entry.project].filter(f=>f!==entry.folder).map(f=>(
-                          <button key={f} onClick={()=>onMoveToProject && onMoveToProject(entry.id, entry.project, f)}
-                            style={{padding:'2px 8px',background:'rgba(144,192,255,0.08)',border:'1px solid rgba(144,192,255,0.2)',borderRadius:10,color:'#90C0FF',fontSize:10,cursor:'pointer'}}>
-                            → {f}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    {allProjects && allProjects.length > 1 && (
-                      <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
-                        <span style={{fontSize:10,color:'var(--text3)'}}>🚚 移動:</span>
-                        {allProjects.filter(p=>p!==entry.project).map(p=>(
-                          <button key={p} onClick={()=>onMoveToProject && onMoveToProject(entry.id, p, '未分類')}
-                            style={{padding:'2px 8px',background:'rgba(248,224,112,0.08)',border:'1px solid rgba(248,224,112,0.2)',borderRadius:10,color:'var(--gold)',fontSize:10,cursor:'pointer'}}>
-                            → {p}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-            </div>
           </div>
         )}
       </div>
     </>
   );
 }
+
 
 function ProjectTab({project,isActive,isDefault,todoCount,onClick,onRename,onDelete}){
   const[editing,setEditing]=useState(false);
@@ -1259,57 +1878,80 @@ function TodoAddForm({onAdd,allEntries,currentProject}){
   );
 }
 function App(){
-  const[initState,setInitState]=useState('loading');
-  const[loginErr,setLoginErr]=useState('');
-  const[currentUser,setCurrentUser]=useState(null);
-  const[newVersion,setNewVersion]=useState(null);
-  const[entries,setEntries]=useState([]);
-  const[projects,setProjects]=useState(['デフォルト']);
-  const[todos,setTodos]=useState([]);
-  const[folders,setFolders]=useState({'デフォルト':['未分類']});
-  const[feedbacks,setFeedbacks]=useState([]);
-  const[cursors,setCursors]=useState([]);
-  const[currentProject,setCurrentProject]=usePersistLocal('kos_currentProject','デフォルト');
-  const[apiKey,setApiKey]=usePersistLocal('kos_apikey','');
-  const[totalCost,setTotalCost]=usePersistLocal('kos_cost',0);
-  const[showApiModal,setShowApiModal]=useState(false);
-  const[inputText,setInputText]=useState('');
-  const[loading,setLoading]=useState(false);
-  const[error,setError]=useState('');
-  const[celebrate,setCelebrate]=useState(false);
-  const[confetti,setConfetti]=useState(false);
-  const[newProjectName,setNewProjectName]=useState('');
-  const[showAddProject,setShowAddProject]=useState(false);
-  const[jumpInfo,setJumpInfo]=useState(null);
-  const[showCompleted,setShowCompleted]=useState(false);
-  const[newFolderName,setNewFolderName]=useState('');
-  const[showAddFolder,setShowAddFolder]=useState(false);
-  const textareaRef=useRef(null);
-  const cursorUpdateRef=useRef(null);
-  const userName=localStorage.getItem('kos_userName')||'名無し';
-  const userColor=localStorage.getItem('kos_userColor')||CURSOR_COLORS[0];
-　const [showSettings, setShowSettings] = useState(false);
-  const [theme, setTheme] = useState(window.kosTheme || 'default');
+  const [initState, setInitState] = useState('loading');
+  const [loginErr, setLoginErr] = useState('');
+  const [currentUser, setCurrentUser] = useState(null);
+  const [newVersion, setNewVersion] = useState(null);
+  const [entries, setEntries] = useState([]);
+  const [projects, setProjects] = useState(['デフォルト']);
+  const [todos, setTodos] = useState([]);
+  const [folders, setFolders] = useState({'デフォルト':['未分類']});
+  const [feedbacks, setFeedbacks] = useState([]);
+  const [cursors, setCursors] = useState([]);
+  const [currentProject, setCurrentProject] = usePersistLocal('kos_currentProject', 'デフォルト');
+  const [apiKey, setApiKey] = usePersistLocal('kos_apikey', '');
+  const [totalCost, setTotalCost] = usePersistLocal('kos_cost', 0);
+  const [showApiModal, setShowApiModal] = useState(false);
+  const [inputText, setInputText] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [celebrate, setCelebrate] = useState(false);
+  const [confetti, setConfetti] = useState(false);
+  const [newProjectName, setNewProjectName] = useState('');
+  const [showAddProject, setShowAddProject] = useState(false);
+  const [jumpInfo, setJumpInfo] = useState(null);
+  const [showCompleted, setShowCompleted] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [showAddFolder, setShowAddFolder] = useState(false);
+  const textareaRef = useRef(null);
+  const cursorUpdateRef = useRef(null);
+  
+  // ユーザー設定の取得
+  const userName = localStorage.getItem('kos_userName') || '名無し';
+  const userColor = localStorage.getItem('kos_userColor') || CURSOR_COLORS;
 
-  useEffect(()=>{
-    const stored=localStorage.getItem('kos_firebaseConfig');
-    if(!stored){setInitState('need-config');return;}
-    try{
-      const config=JSON.parse(stored);
+  // UI・背景設定の状態管理
+  const [showSettings, setShowSettings] = useState(false); // 全角スペースを除去しました
+  const [theme, setTheme] = useState(window.kosTheme || 'default');
+  const [bgType, setBgType] = useState(localStorage.getItem('kos_bgType') || 'classic');
+
+  // 背景設定をグローバル変数に同期（描画システム用）
+  useEffect(() => {
+    window.kosBg = bgType;
+  }, [bgType]);
+
+  // Firebase初期化ロジック
+  useEffect(() => {
+    const stored = localStorage.getItem('kos_firebaseConfig');
+    if (!stored) {
+      setInitState('need-config');
+      return;
+    }
+    try {
+      const config = JSON.parse(stored);
       let app;
-      try{app=firebase.app();}catch{app=firebase.initializeApp(config);}
-      db=app.firestore();auth=app.auth();
-      const unsubAuth=auth.onAuthStateChanged(user=>{
-        if(user){setCurrentUser(user);setInitState('ready');}
-        else{setInitState('need-login');}
+      try {
+        app = firebase.app();
+      } catch {
+        app = firebase.initializeApp(config);
+      }
+      db = app.firestore();
+      auth = app.auth();
+      const unsubAuth = auth.onAuthStateChanged(user => {
+        if (user) {
+          setCurrentUser(user);
+          setInitState('ready');
+        } else {
+          setInitState('need-login');
+        }
       });
-      return()=>unsubAuth();
-    }catch(e){
-      console.error('Firebase init error:',e);
+      return () => unsubAuth();
+    } catch (e) {
+      console.error('Firebase init error:', e);
       localStorage.removeItem('kos_firebaseConfig');
       setInitState('need-config');
     }
-  },[]);
+  }, []);
 
   useEffect(()=>{
     if(initState!=='ready'||!db)return;
@@ -1685,8 +2327,7 @@ unsubs.push(
   };
 
   const saveKey=k=>{setApiKey(k);setShowApiModal(false);};
-
-  if(initState==='loading'){
+if(initState==='loading'){
     return(
       <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100vh',gap:14,color:'var(--gold)'}}>
         <div style={{fontSize:36}}>⚡</div>
@@ -1705,25 +2346,48 @@ unsubs.push(
           <CelebrationOverlay show={celebrate} onDone={()=>{setCelebrate(false);setConfetti(false);}}/>
           <ApiKeyModal show={showApiModal} onSave={saveKey} onClose={()=>setShowApiModal(false)}/>
           <CursorOverlay cursors={cursors} currentUid={currentUser?.uid}/>
-{showSettings && (
+
+          {showSettings&&(
             <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.85)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:3000}}>
               <div style={{background:'var(--dark2)',border:'1px solid var(--border)',borderRadius:12,padding:30,width:400,maxWidth:'90vw'}}>
                 <div style={{fontSize:18,fontWeight:700,color:'var(--gold)',marginBottom:16}}>⚙️ 設定</div>
                 <div style={{marginBottom:10,color:'var(--text2)',fontSize:13}}>UIテーマ</div>
-                <select value={theme} onChange={e=>{
+                <select
+                  value={theme}
+                  onChange={e=>{
                     setTheme(e.target.value);
-                    window.kosTheme = e.target.value;
-                    localStorage.setItem('kos_theme', e.target.value);
-                    document.documentElement.setAttribute('data-theme', e.target.value);
+                    window.kosTheme=e.target.value;
+                    localStorage.setItem('kos_theme',e.target.value);
+                    document.documentElement.setAttribute('data-theme',e.target.value);
                   }}
-                  style={{width:'100%',padding:10,background:'var(--dark4)',border:'1px solid var(--border)',borderRadius:6,color:'var(--text)',fontSize:13,marginBottom:20}}>
+                  style={{width:'100%',padding:10,background:'var(--dark4)',border:'1px solid var(--border)',borderRadius:6,color:'var(--text)',fontSize:13,marginBottom:20}}
+                >
                   <option value="default">デフォルト（黒×金）</option>
                   <option value="eva01">エヴァ初号機（紫×黄緑）</option>
-                <option value="eva02">エヴァ2号機（赤×オレンジ）</option>
-                <option value="mark6">マーク6（深黒×暗赤）</option>
+                  <option value="eva02">エヴァ2号機（赤×オレンジ）</option>
+                  <option value="mark6">Mark.6（暗青×オレンジ）</option>
+                </select>
+                <div style={{marginBottom:10,color:'var(--text2)',fontSize:13,marginTop:16}}>動的背景エフェクト</div>
+                <select
+                  value={bgType}
+                  onChange={e=>{
+                    setBgType(e.target.value);
+                    window.kosBg=e.target.value;
+                    localStorage.setItem('kos_bgType',e.target.value);
+                  }}
+                  style={{width:'100%',padding:10,background:'var(--dark4)',border:'1px solid var(--border)',borderRadius:6,color:'var(--text)',fontSize:13,marginBottom:20}}
+                >
+                  <option value="classic">幾何学エヴァ★デフォルト</option>
+<option value="lance">ロンギヌスの槍（脈動アニメ）</option>
+<option value="sephiroth">セフィロトの樹（虹色発光）</option>
                 </select>
                 <div style={{textAlign:'right'}}>
-                  <button onClick={()=>setShowSettings(false)} style={{padding:'7px 16px',background:'rgba(248,224,112,0.18)',border:'1px solid rgba(248,224,112,0.6)',borderRadius:6,color:'var(--gold)'}}>閉じる</button>
+                  <button
+                    onClick={()=>setShowSettings(false)}
+                    style={{padding:'7px 16px',background:'rgba(248,224,112,0.18)',border:'1px solid rgba(248,224,112,0.6)',borderRadius:6,color:'var(--gold)'}}
+                  >
+                    閉じる
+                  </button>
                 </div>
               </div>
             </div>
@@ -1731,23 +2395,24 @@ unsubs.push(
 
           {/* バージョン通知バナー */}
           {newVersion&&(
-  <div style={{background:'#ff9800',color:'#fff',padding:'8px 16px',textAlign:'center',fontSize:14,position:'sticky',top:0,zIndex:9999,flexShrink:0}}>
-    🔔 新しいバージョン ({newVersion}) が公開されました。
-    <button onClick={()=>{
-      localStorage.setItem('kos_dismissedVersion',newVersion);
-      window.location.reload();
-    }} style={{marginLeft:12,background:'#fff',color:'#ff9800',border:'none',borderRadius:4,padding:'2px 10px',cursor:'pointer',fontFamily:'inherit'}}>
-      今すぐ更新
-    </button>
-    <button onClick={()=>{
-      localStorage.setItem('kos_dismissedVersion',newVersion);
-      setNewVersion(null);
-    }} style={{marginLeft:8,background:'transparent',color:'#fff',border:'1px solid #fff',borderRadius:4,padding:'2px 8px',cursor:'pointer',fontFamily:'inherit'}}>
-      後で
-    </button>
-  </div>
-)}
-{/* ヘッダー */}
+            <div style={{background:'#ff9800',color:'#fff',padding:'8px 16px',textAlign:'center',fontSize:14,position:'sticky',top:0,zIndex:9999,flexShrink:0}}>
+              🔔 新しいバージョン ({newVersion}) が公開されました。
+              <button onClick={()=>{
+                localStorage.setItem('kos_dismissedVersion',newVersion);
+                window.location.reload();
+              }} style={{marginLeft:12,background:'#fff',color:'#ff9800',border:'none',borderRadius:4,padding:'2px 10px',cursor:'pointer',fontFamily:'inherit'}}>
+                今すぐ更新
+              </button>
+              <button onClick={()=>{
+                localStorage.setItem('kos_dismissedVersion',newVersion);
+                setNewVersion(null);
+              }} style={{marginLeft:8,background:'transparent',color:'#fff',border:'1px solid #fff',borderRadius:4,padding:'2px 8px',cursor:'pointer',fontFamily:'inherit'}}>
+                後で
+              </button>
+            </div>
+          )}
+
+          {/* ヘッダー */}
           <header style={{padding:'0 16px',height:52,display:'flex',alignItems:'center',justifyContent:'space-between',borderBottom:'1px solid var(--border)',background:'rgba(8,8,8,0.92)',flexShrink:0}}>
             <div style={{display:'flex',alignItems:'center',gap:10,flexShrink:0}}>
               <div>
@@ -1766,11 +2431,11 @@ unsubs.push(
                 style={{padding:'5px 12px',background:apiKey?'rgba(112,224,160,0.1)':'rgba(255,144,144,0.1)',border:'1px solid '+(apiKey?'rgba(112,224,160,0.35)':'rgba(255,144,144,0.35)'),borderRadius:6,color:apiKey?'#70E0A0':'#FF9090',fontSize:11}}>
                 🔑 {apiKey?'API設定済':'APIキー設定'}
               </button>
-<button onClick={()=>setShowSettings(true)}
+              <button onClick={()=>setShowSettings(true)}
                 style={{padding:'5px 12px',background:'transparent',border:'1px solid var(--border)',borderRadius:6,color:'var(--gold)',fontSize:11}}>
                 ⚙️ 設定
               </button>
-   </div>
+            </div>
           </header>
 
           {/* プロジェクトタブ */}
@@ -1814,15 +2479,15 @@ unsubs.push(
                   style={{width:'100%',padding:'8px 10px',background:'var(--dark3)',border:'1px solid var(--border)',borderRadius:7,color:'var(--text)',fontSize:12,lineHeight:'1.75',resize:'vertical',outline:'none'}}/>
               </div>
               <div style={{display:'flex',gap:6}}>
-              <button onClick={handleSubmit} disabled={loading}
-                style={{flex:1,padding:'9px',background:loading?'rgba(248,224,112,0.08)':'rgba(248,224,112,0.18)',border:'1px solid rgba(248,224,112,0.55)',borderRadius:8,color:loading?'var(--text3)':'var(--gold)',fontSize:13,fontWeight:600,transition:'all 0.2s'}}>
-                {loading?'⏳ AI解析中...':'✨ 解析して登録'}
-              </button>
-              <button onClick={handleDirectSave} disabled={loading}
-                style={{flex:1,padding:'9px',background:loading?'rgba(144,192,255,0.04)':'rgba(144,192,255,0.12)',border:'1px solid rgba(144,192,255,0.4)',borderRadius:8,color:loading?'var(--text3)':'#90C0FF',fontSize:13,fontWeight:600,transition:'all 0.2s'}}>
-                📥 そのまま登録
-              </button>
-            </div>
+                <button onClick={handleSubmit} disabled={loading}
+                  style={{flex:1,padding:'9px',background:loading?'rgba(248,224,112,0.08)':'rgba(248,224,112,0.18)',border:'1px solid rgba(248,224,112,0.55)',borderRadius:8,color:loading?'var(--text3)':'var(--gold)',fontSize:13,fontWeight:600,transition:'all 0.2s'}}>
+                  {loading?'⏳ AI解析中...':'✨ 解析して登録'}
+                </button>
+                <button onClick={handleDirectSave} disabled={loading}
+                  style={{flex:1,padding:'9px',background:loading?'rgba(144,192,255,0.04)':'rgba(144,192,255,0.12)',border:'1px solid rgba(144,192,255,0.4)',borderRadius:8,color:loading?'var(--text3)':'#90C0FF',fontSize:13,fontWeight:600,transition:'all 0.2s'}}>
+                  📥 そのまま登録
+                </button>
+              </div>
               <div>
                 <label style={{fontSize:11,color:'var(--text3)',display:'block',marginBottom:5}}>ファイル入力（複数可）</label>
                 <FileUploadZone onFile={handleFile} onDirectFile={handleDirectFile}/>
@@ -1887,10 +2552,7 @@ unsubs.push(
                 <div style={{fontSize:10,color:'var(--text3)',letterSpacing:'0.18em',textTransform:'uppercase'}}>To-Do — {currentProject}</div>
                 {pendingTodos.length>0&&<span style={{background:'rgba(248,224,112,0.18)',border:'1px solid rgba(248,224,112,0.35)',borderRadius:10,padding:'1px 7px',fontSize:10,color:'var(--gold)'}}>{pendingTodos.length}件</span>}
               </div>
-
-              {/* ★ TodoAddForm（関連文書選択付き）*/}
               <TodoAddForm onAdd={addTodo} allEntries={entries} currentProject={currentProject}/>
-
               {pendingTodos.length===0&&doneTodos.length===0?(
                 <div style={{textAlign:'center',padding:'24px 8px',color:'var(--text3)',fontSize:12}}>
                   <div style={{fontSize:24,marginBottom:6}}>✓</div>
@@ -1921,7 +2583,9 @@ unsubs.push(
                 </>
               )}
             </div>
+
           </div>
+
         </>
       )}
     </React.Fragment>
