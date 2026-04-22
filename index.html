@@ -1915,6 +1915,8 @@ function App(){
   const [showSettings, setShowSettings] = useState(false); // 全角スペースを除去しました
   const [theme, setTheme] = useState(window.kosTheme || 'default');
   const [bgType, setBgType] = useState(localStorage.getItem('kos_bgType') || 'classic');
+  const [editName, setEditName] = useState('');
+  const [usageMemo, setUsageMemo] = useState(()=>localStorage.getItem('kos_usage_memo')||'');
 
   // 背景設定をグローバル変数に同期（描画システム用）
   useEffect(() => {
@@ -1966,7 +1968,13 @@ function App(){
     unsubs.push(db.collection('meta').doc('state').onSnapshot(snap=>{
       if(snap.exists){
         const data=snap.data();
-        if(data.projects&&Array.isArray(data.projects))setProjects(data.projects);
+        if(data.projects&&Array.isArray(data.projects)){
+          setProjects(data.projects);
+          setCurrentProject(prev=>{
+            if(data.projects.includes(prev))return prev;
+            return 'デフォルト';
+          });
+        }
         if(data.folders&&typeof data.folders==='object')setFolders(data.folders);
       }else{
         db.collection('meta').doc('state').set({projects:['デフォルト'],folders:{'デフォルト':['未分類']}});
@@ -2383,6 +2391,39 @@ if(initState==='loading'){
 <option value="lance">ロンギヌスの槍（脈動アニメ）</option>
 <option value="sephiroth">セフィロトの樹（虹色発光）</option>
                 </select>
+                <div style={{marginBottom:10,color:'var(--text2)',fontSize:13,marginTop:16}}>表示名の変更</div>
+                <div style={{display:'flex',gap:8,marginBottom:20}}>
+                  <input
+                    value={editName}
+                    onChange={e=>setEditName(e.target.value)}
+                    placeholder="新しい表示名"
+                    style={{flex:1,padding:'8px 10px',background:'var(--dark4)',border:'1px solid var(--border)',borderRadius:6,color:'var(--text)',fontSize:13,outline:'none'}}
+                  />
+                  <button
+                    onClick={()=>{
+                      if(editName.trim()){
+                        localStorage.setItem('kos_userName',editName.trim());
+                        setEditName('');
+                        alert('表示名を「'+editName.trim()+'」に変更しました。\n反映にはページ再読み込みが必要です。');
+                      }
+                    }}
+                    style={{padding:'8px 16px',background:'rgba(248,224,112,0.18)',border:'1px solid rgba(248,224,112,0.6)',borderRadius:6,color:'var(--gold)',fontSize:13,fontWeight:600}}
+                  >
+                    変更
+                  </button>
+                </div>
+                <div style={{marginBottom:10,color:'var(--text2)',fontSize:13,marginTop:16}}>📖 使い方メモ</div>
+                <textarea
+                  value={usageMemo}
+                  onChange={e=>{
+                    setUsageMemo(e.target.value);
+                    localStorage.setItem('kos_usage_memo',e.target.value);
+                  }}
+                  placeholder="チームへの使い方・ルール・注意事項などを自由に書いてください..."
+                  rows={6}
+                  style={{width:'100%',padding:'10px',background:'var(--dark4)',border:'1px solid var(--border)',borderRadius:8,color:'var(--text)',fontSize:12,outline:'none',resize:'vertical',lineHeight:'1.7',marginBottom:4}}
+                />
+                <div style={{fontSize:10,color:'var(--text3)',marginBottom:16}}>※ このブラウザのみに保存されます</div>
                 <div style={{textAlign:'right'}}>
                   <button
                     onClick={()=>setShowSettings(false)}
