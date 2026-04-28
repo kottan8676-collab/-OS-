@@ -3,7 +3,7 @@
 
 
 
-
+h
 
 <!DOCTYPE html>
 <html lang="ja">
@@ -2047,7 +2047,7 @@ unsubs.push(
     if(!db)return;
     const id=String(entry.id);
     const{objectUrl,...rest}=entry;
-    db.collection('entries').doc(id).set({...rest,id,objectUrl:null});
+    db.collection('entries').doc(id).set({...rest,id,objectUrl:null});      sendEmailNotification({title: entry.title || entry.summary || '無題', notification_type: 'ナレッジ追加', project: entry.folder || '未分類', priority: 'medium', due_date: '', notes: ''});
   };
 
   const deleteEntry=(id)=>{if(!db)return;db.collection('entries').doc(String(id)).delete();};
