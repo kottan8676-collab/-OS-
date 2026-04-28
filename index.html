@@ -2074,7 +2074,7 @@ unsubs.push(
     db.collection('feedbacks').doc(String(fb.id)).set(fb);
   };
 
-  const // ===== EmailJS Gmail通知 =====
+  // ===== EmailJS Gmail通知 =====
   const EMAILJS_SERVICE_ID = 'service_zosf8a2';
   const EMAILJS_TEMPLATE_ID = 'template_bxquwrd';
   const EMAILJS_PUBLIC_KEY = 'x_wFan5XI4QoUTAyu';
@@ -2095,7 +2095,7 @@ unsubs.push(
   };
   // ===== EmailJS Gmail通知 ここまで =====
 
-  saveTodo=(todo)=>{
+  const saveTodo=(todo)=>{
     if(!db)return;
     const id=String(todo.id);
     db.collection('todos').doc(id).set({...todo,id});
