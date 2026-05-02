@@ -1898,6 +1898,7 @@ function App(){
   const [showApiModal, setShowApiModal] = useState(false);
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
+  const cancelRef = useRef(false);
   const [error, setError] = useState('');
   const [celebrate, setCelebrate] = useState(false);
   const [confetti, setConfetti] = useState(false);
@@ -2050,7 +2051,7 @@ unsubs.push(
     db.collection('entries').doc(id).set({...rest,id,objectUrl:null});      sendEmailNotification({title: entry.title || entry.summary || '無題', notification_type: 'ナレッジ追加', project: entry.folder || '未分類', priority: 'medium', due_date: '', notes: ''});
   };
 
-  const deleteEntry=(id)=>{if(!db)return;db.collection('entries').doc(String(id)).delete();};
+  const deleteEntry=(id)=>{if(!db)return;db.collection('entries').doc(String(id)).delete();todos.filter(t=>t.relatedEntryId===String(id)).forEach(t=>{db.collection('todos').doc(String(t.id)).delete();});};
 
   const updateUserMissing=(entryId,userMissing)=>{
     if(!db)return;
@@ -2165,9 +2166,10 @@ unsubs.push(
   const handleSubmit=async()=>{
     if(!inputText.trim()){setError('テキストを入力してください');return;}
     if(!apiKey){setShowApiModal(true);return;}
-    setLoading(true);setError('');
+    cancelRef.current=false;setLoading(true);setError('');
     try{
       const ai=await analyzeText(apiKey,inputText,currentProject,projectEntries,feedbacks,'未分類');
+      if(cancelRef.current){setLoading(false);return;}
       const cost=calcCost(ai.inp||0,ai.out||0);
       setTotalCost(prev=>+(prev+cost).toFixed(6));
       const id=String(Date.now());
@@ -2240,7 +2242,7 @@ unsubs.push(
 
   const handleFile=async(fileData)=>{
     if(!apiKey){setShowApiModal(true);return;}
-    setLoading(true);setError('');
+    cancelRef.current=false;setLoading(true);setError('');
     try{
       let ai;
       let fileUrl = null;
@@ -2547,10 +2549,17 @@ if(initState==='loading'){
                   style={{width:'100%',padding:'8px 10px',background:'var(--dark3)',border:'1px solid var(--border)',borderRadius:7,color:'var(--text)',fontSize:12,lineHeight:'1.75',resize:'vertical',outline:'none'}}/>
               </div>
               <div style={{display:'flex',gap:6}}>
-                <button onClick={handleSubmit} disabled={loading}
-                  style={{flex:1,padding:'9px',background:loading?'rgba(248,224,112,0.08)':'rgba(248,224,112,0.18)',border:'1px solid rgba(248,224,112,0.55)',borderRadius:8,color:loading?'var(--text3)':'var(--gold)',fontSize:13,fontWeight:600,transition:'all 0.2s'}}>
-                  {loading?'⏳ AI解析中...':'✨ 解析して登録'}
+                {loading?(
+                <button onClick={()=>{cancelRef.current=true;setLoading(false);setError('⛔ キャンセルしました');}}
+                  style={{flex:1,padding:'9px',background:'rgba(255,100,100,0.18)',border:'1px solid rgba(255,100,100,0.55)',borderRadius:8,color:'#FF6464',fontSize:13,fontWeight:600,cursor:'pointer',transition:'all 0.2s'}}>
+                  ⛔ キャンセル
                 </button>
+              ):(
+                <button onClick={handleSubmit}
+                  style={{flex:1,padding:'9px',background:'rgba(248,224,112,0.18)',border:'1px solid rgba(248,224,112,0.55)',borderRadius:8,color:'var(--gold)',fontSize:13,fontWeight:600,transition:'all 0.2s'}}>
+                  ✨ 解析して登録
+                </button>
+              )}
                 <button onClick={handleDirectSave} disabled={loading}
                   style={{flex:1,padding:'9px',background:loading?'rgba(144,192,255,0.04)':'rgba(144,192,255,0.12)',border:'1px solid rgba(144,192,255,0.4)',borderRadius:8,color:loading?'var(--text3)':'#90C0FF',fontSize:13,fontWeight:600,transition:'all 0.2s'}}>
                   📥 そのまま登録
