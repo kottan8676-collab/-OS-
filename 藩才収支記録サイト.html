@@ -213,7 +213,7 @@
 (function(){
 var $=function(s){return document.querySelector(s);};
 var yen=function(n){return '￥'+Math.round(n).toLocaleString('ja-JP');};
-var yenShort=function(n){var a=Math.abs(n);var s=n<0?'−':'';if(a>=100000000)return s+'￥'+(a/100000000).toFixed(1).replace(/\.0$/,'')+'億';if(a>=10000)return s+'￥'+(a/10000).toFixed(a%10000===0?0:1)+'万';return s+'￥'+Math.round(a).toLocaleString('ja-JP');};
+var yenShort=function(n){var a=Math.abs(n);var s=n<0?'&#x2212;':'';if(a>=100000000)return s+'￥'+(a/100000000).toFixed(1).replace(/\.0$/,'')+'億';if(a>=10000)return s+'￥'+(a/10000).toFixed(a%10000===0?0:1)+'万';return s+'￥'+Math.round(a).toLocaleString('ja-JP');};
 var KEY='banzai:transactions';
 var data=[];
 var CATS={rev:['個人会員','法人会員','シェアハウス','イベント/体験','BtoB研修','補助金','その他'],cost:['仕入','家賎','光熱費','交通費','広告宣伝','会議費','設備','人件費','雑費','その他']};
@@ -329,7 +329,7 @@ function renderRecent(){
 var el=$('#recent');
 var arr=data.slice().sort(function(a,b){return b.date.localeCompare(a.date)||b.id.localeCompare(a.id);}).slice(0,6);
 if(!arr.length){el.innerHTML='<div class="empty">記録なし ／ NO DATA</div>';return;}
-el.innerHTML=arr.map(function(t){return '<div class="row"><div class="r-left"><div><span class="tag '+t.type+'">'+(t.type==='rev'?'売上':'費用')+'</span>'+esc(t.project||t.cat)+'</div><div class="r-meta">'+t.date+' ／ '+esc(t.cat)+' ／ '+esc(t.payer)+(t.memo?' ／ '+esc(t.memo):'')+' </div></div><div class="'+(t.type==='rev'?'amt-rev':'amt-cost')+'">'+(t.type==='rev'?'+':'−')+yen(t.amount)+'</div></div>';}).join('');
+el.innerHTML=arr.map(function(t){return '<div class="row"><div class="r-left"><div><span class="tag '+t.type+'">'+(t.type==='rev'?'売上':'費用')+'</span>'+esc(t.project||t.cat)+'</div><div class="r-meta">'+t.date+' ／ '+esc(t.cat)+' ／ '+esc(t.payer)+(t.memo?' ／ '+esc(t.memo):'')+' </div></div><div class="'+(t.type==='rev'?'amt-rev':'amt-cost')+'">'+(t.type==='rev'?'+':'&#x2212;')+yen(t.amount)+'</div></div>';}).join('');
 }
 
 function renderList(){
@@ -348,7 +348,7 @@ if(pSel.value!=='all')arr=arr.filter(function(t){return t.payer===pSel.value;});
 if(mSel.value!=='all')arr=arr.filter(function(t){return t.date.indexOf(mSel.value)===0;});
 var el=$('#listTable');
 if(!arr.length){el.innerHTML='<div class="empty">該当なし ／ NO DATA</div>';return;}
-el.innerHTML='<div class="t-row head"><div>日付</div><div>内容</div><div class="t-amt">金額</div><div></div><div></div></div>'+arr.map(function(t){return '<div class="t-row"><div class="t-date">'+t.date+'</div><div class="t-main"><b><span class="tag '+t.type+'">'+(t.type==='rev'?'売上':'費用')+'</span>'+esc(t.project||t.cat)+'</b><span class="t-sub">'+esc(t.cat)+' ／ '+esc(t.payer)+(t.memo?' ／ '+esc(t.memo):'')+' </span></div><div class="t-amt '+(t.type==='rev'?'amt-rev':'amt-cost')+'">'+(t.type==='rev'?'+':'−')+yen(t.amount)+'</div><button class="edt" onclick="__edit(''+t.id+'')" title="編集">✎</button><button class="del" onclick="__del(''+t.id+'')" title="削除">×</button></div>';}).join('');
+el.innerHTML='<div class="t-row head"><div>日付</div><div>内容</div><div class="t-amt">金額</div><div></div><div></div></div>'+arr.map(function(t){return '<div class="t-row"><div class="t-date">'+t.date+'</div><div class="t-main"><b><span class="tag '+t.type+'">'+(t.type==='rev'?'売上':'費用')+'</span>'+esc(t.project||t.cat)+'</b><span class="t-sub">'+esc(t.cat)+' ／ '+esc(t.payer)+(t.memo?' ／ '+esc(t.memo):'')+' </span></div><div class="t-amt '+(t.type==='rev'?'amt-rev':'amt-cost')+'">'+(t.type==='rev'?'+':'&#x2212;')+yen(t.amount)+'</div><button class="edt" onclick="__edit(''+t.id+'')" title="編集">&#x270E;</button><button class="del" onclick="__del(''+t.id+'')" title="削除">&times;</button></div>';}).join('');
 }
 
 function renderProject(){
@@ -369,10 +369,10 @@ var v=map[proj];var net=v.rev-v.cost;
 var cats=Object.keys(v.cats).map(function(k){return v.cats[k];}).sort(function(a,b){return b.amount-a.amount;});
 var revRows=cats.filter(function(c){return c.type==='rev';});
 var costRows=cats.filter(function(c){return c.type==='cost';});
-function mkRow(c){return '<div class="p-row" style="grid-template-columns:20px 1fr minmax(90px,auto)"><div></div><div class="name" style="color:var(--dim);font-size:12px">'+esc(c.cat)+'</div><div class="num '+(c.type==='rev'?'amt-rev':'amt-cost')+'">'+(c.type==='rev'?'+':'−')+yen(c.amount)+'</div></div>';}
+function mkRow(c){return '<div class="p-row" style="grid-template-columns:20px 1fr minmax(90px,auto)"><div></div><div class="name" style="color:var(--dim);font-size:12px">'+esc(c.cat)+'</div><div class="num '+(c.type==='rev'?'amt-rev':'amt-cost')+'">'+(c.type==='rev'?'+':'&#x2212;')+yen(c.amount)+'</div></div>';}
 var rHead=revRows.length?'<div class="p-row head" style="grid-template-columns:20px 1fr minmax(90px,auto)"><div></div><div>売上 区分</div><div class="num">金額</div></div>'+revRows.map(mkRow).join(''):'';
 var cHead=costRows.length?'<div class="p-row head" style="grid-template-columns:20px 1fr minmax(90px,auto);margin-top:8px"><div></div><div>費用 区分</div><div class="num">金額</div></div>'+costRows.map(mkRow).join(''):'';
-return '<div class="p-group"><div class="p-group-header"><div class="p-group-title">'+esc(proj)+'</div><div class="p-group-summary"><span class="amt-rev">+'+yen(v.rev)+'</span> − <span class="amt-cost">'+yen(v.cost)+'</span> = <span style="color:'+(net>=0?'var(--amber)':'var(--red)')+'">'+yen(net)+'</span></div></div><div class="p-group-body">'+rHead+cHead+'</div></div>';
+return '<div class="p-group"><div class="p-group-header"><div class="p-group-title">'+esc(proj)+'</div><div class="p-group-summary"><span class="amt-rev">+'+yen(v.rev)+'</span> &#x2212; <span class="amt-cost">'+yen(v.cost)+'</span> = <span style="color:'+(net>=0?'var(--amber)':'var(--red)')+'">'+yen(net)+'</span></div></div><div class="p-group-body">'+rHead+cHead+'</div></div>';
 }).join('');
 }
 
