@@ -333,24 +333,24 @@ el.innerHTML=arr.map(function(t){return '<div class="row"><div class="r-left"><d
 }
 
 function renderList(){
-var ft=$('#filterType').value,pv=$('#filterPayer').value,mv=$('#filterMonth').value;
+var ft=$("#filterType").value,pv=$("#filterPayer").value,mv=$("#filterMonth").value;
 var payers=data.map(function(t){return t.payer;}).filter(function(v,i,a){return a.indexOf(v)===i;});
-var pSel=$('#filterPayer');var curP=pSel.value;
-pSel.innerHTML='<option value="all">支払者：すべて</option>'+payers.map(function(p){return '<option value="'+esc(p)+'">'+esc(p)+'</option>';}).join('');
-pSel.value=Array.from(pSel.options).some(function(o){return o.value===curP;})?curP:'all';
+var pSel=$("#filterPayer");var curP=pSel.value;
+pSel.innerHTML="<option value=\"all\">支払者：すべて</option>"+payers.map(function(p){return "<option value=\""+esc(p)+"\">"+ esc(p)+"</option>";}).join("");
+pSel.value=Array.from(pSel.options).some(function(o){return o.value===curP;})?curP:"all";
 var months=data.map(function(t){return t.date.slice(0,7);}).filter(function(v,i,a){return a.indexOf(v)===i;}).sort().reverse();
-var mSel=$('#filterMonth');var curM=mSel.value;
-mSel.innerHTML='<option value="all">期間：すべて</option>'+months.map(function(m){return '<option value="'+m+'">'+m+'</option>';}).join('');
-mSel.value=Array.from(mSel.options).some(function(o){return o.value===curM;})?curM:'all';
+var mSel=$("#filterMonth");var curM=mSel.value;
+mSel.innerHTML="<option value=\"all\">期間：すべて</option>"+months.map(function(m){return "<option value=\""+m+"\">"+m+"</option>";}).join("");
+mSel.value=Array.from(mSel.options).some(function(o){return o.value===curM;})?curM:"all";
 var arr=data.slice().sort(function(a,b){return b.date.localeCompare(a.date)||b.id.localeCompare(a.id);});
-if(ft!=='all')arr=arr.filter(function(t){return t.type===ft;});
-if(pSel.value!=='all')arr=arr.filter(function(t){return t.payer===pSel.value;});
-if(mSel.value!=='all')arr=arr.filter(function(t){return t.date.indexOf(mSel.value)===0;});
-var el=$('#listTable');
-if(!arr.length){el.innerHTML='<div class="empty">該当なし ／ NO DATA</div>';return;}
-el.innerHTML='<div class="t-row head"><div>日付</div><div>内容</div><div class="t-amt">金額</div><div></div><div></div></div>'+arr.map(function(t){return '<div class="t-row"><div class="t-date">'+t.date+'</div><div class="t-main"><b><span class="tag '+t.type+'">'+(t.type==='rev'?'売上':'費用')+'</span>'+esc(t.project||t.cat)+'</b><span class="t-sub">'+esc(t.cat)+' ／ '+esc(t.payer)+(t.memo?' ／ '+esc(t.memo):'')+' </span></div><div class="t-amt '+(t.type==='rev'?'amt-rev':'amt-cost')+'">'+(t.type==='rev'?'+':'&#x2212;')+yen(t.amount)+'</div><button class="edt" onclick="__edit(''+t.id+'')" title="編集">&#x270E;</button><button class="del" onclick="__del(''+t.id+'')" title="削除">&times;</button></div>';}).join('');
+if(ft!=="all")arr=arr.filter(function(t){return t.type===ft;});
+if(pSel.value!=="all")arr=arr.filter(function(t){return t.payer===pSel.value;});
+if(mSel.value!=="all")arr=arr.filter(function(t){return t.date.indexOf(mSel.value)===0;});
+var el=$("#listTable");
+if(!arr.length){el.innerHTML="<div class=\"empty\">該当なし / NO DATA</div>";return;}
+el.innerHTML="<div class=\"t-row head\"><div>日付</div><div>内容</div><div class=\"t-amt\">金額</div><div></div><div></div></div>"+arr.map(function(t){return "<div class=\"t-row\"><div class=\"t-date\">"+t.date+"</div><div class=\"t-main\"><b><span class=\"tag "+t.type+"\">"+(t.type==="rev"?"売上":"費用")+"</span>"+esc(t.project||t.cat)+"</b><span class=\"t-sub\">"+esc(t.cat)+" / "+esc(t.payer)+(t.memo?" / "+esc(t.memo):"")+"</span></div><div class=\"t-amt "+(t.type==="rev"?"amt-rev":"amt-cost")+"\">"+(t.type==="rev"?"+":"-")+yen(t.amount)+"</div><button class=\"edt\" data-id=\""+t.id+"\" data-act=\"edit\" title=\"編集\">e</button><button class=\"del\" data-id=\""+t.id+"\" data-act=\"del\" title=\"削除\">x</button></div>";}).join("");
+el.onclick=function(e){var btn=e.target.closest("button[data-act]");if(!btn)return;var id=btn.dataset.id;if(btn.dataset.act==="edit")startEdit(id);else if(btn.dataset.act==="del")del(id);};
 }
-
 function renderProject(){
 var map={};
 data.forEach(function(t){
