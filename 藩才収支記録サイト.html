@@ -288,7 +288,7 @@ window.__edit=startEdit;
 function exportCSV(){
 var hdr=['日付','種別','金額','区分','入金元/支払者','案件','メモ'].join(',');
 var rows=data.map(function(t){return [t.date,t.type==='rev'?'売上':'費用',t.amount,t.cat,t.payer,t.project,t.memo].map(function(v){return '"'+(v+'').replace(/"/g,'""')+'"';}).join(',');});
-var csv='﻿'+hdr+'
+var csv='\uFEFF'+hdr+'
 '+rows.join('
 ');
 var a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='banzai_'+new Date().toISOString().slice(0,10)+'.csv';a.click();
