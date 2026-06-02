@@ -330,7 +330,7 @@ window.__edit=startEdit;
 function exportCSV(){
   const hdr=['日付','種別','金額','区分','入金元/支払者','案件','メモ'].join(',');
   const rows=data.map(t=>[t.date,t.type==='rev'?'売上':'費用',t.amount,t.cat,t.payer,t.project,t.memo].map(v=>'"'+(v+'').replace(/"/g,'""')+'"').join(','));
-  const csv='﻿'+hdr+'
+  const csv='\uFEFF'+hdr+'
 '+rows.join('
 ');
   const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='banzai_'+new Date().toISOString().slice(0,10)+'.csv';a.click();
