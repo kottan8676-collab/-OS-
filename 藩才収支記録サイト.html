@@ -39,32 +39,7 @@
 <div class="sec-title sm"><span>直近の取引</span><em>RECENT</em></div>
 <div class="panel"><div id="recent" class="recent"></div></div>
 </section>
-<section class="view" id="view-entry" hidden>
-<div class="sec-title"><span>取引入力</span><em>NEW RECORD</em></div>
-<div class="panel form">
-<div class="seg" id="typeSeg">
-<button class="seg-btn active" data-type="rev">売上</button>
-<button class="seg-btn" data-type="cost">費用</button>
-</div>
-<div class="field"><label>日付 ／ DATE</label><input type="date" id="fDate"></div>
-<div class="field"><label>金額 ／ AMOUNT (円)</label><input type="number" id="fAmount" placeholder="0" inputmode="numeric" min="1" step="1"></div>
-<div class="field"><label>区分 ／ CATEGORY</label><select id="fCat"></select></div>
-<div class="field">
-<label id="payerLabel">入金元 ／ SOURCE</label>
-<select id="fPayer">
-<option>東小太郎</option>
-<option>渡邉旐都</option>
-<option>会社</option>
-<option value="__custom">＋ 自由入力</option>
-</select>
-<input type="text" id="fPayerCustom" placeholder="名称を入力" style="display:none;margin-top:8px">
-</div>
-<div class="field"><label>案件・イベント名 ／ PROJECT <small>（任意）</small></label><input type="text" id="fProject" placeholder="例：藩才チャレンジ 5/30" list="projectList"><datalist id="projectList"></datalist></div>
-<div class="field"><label>メモ ／ MEMO <small>（任意）</small></label><input type="text" id="fMemo" placeholder="内容"></div>
-<button class="submit" id="submitBtn">記録する ／ COMMIT</button>
-<div class="form-msg" id="formMsg"></div>
-</div>
-</section>
+<section class="view" id="view-entry" hidden><div class="sec-title"><span>取引入力</span><em>NEW RECORD</em></div><div class="panel form"><div class="field"><label>日付 ／ DATE</label><input type="date" id="fDate"></div><div class="field"><label>案件・イベント名 ／ PROJECT <small>（任意）</small></label><input type="text" id="fProject" placeholder="例：藩才チャレンジ 5/30" list="projectList"><datalist id="projectList"></datalist></div><div class="ent-block"><div class="ent-block-title"><span>売上 ／ REVENUE</span></div><div id="revRows"></div><button type="button" class="add-row rev" id="addRev">＋ 売上を追加</button></div><div class="ent-block"><div class="ent-block-title"><span>費用 ／ COST</span></div><div id="costRows"></div><button type="button" class="add-row cost" id="addCost">＋ 費用を追加</button></div><button class="submit" id="submitBtn">記録する ／ COMMIT</button><div class="form-msg" id="formMsg"></div></div></section>
 <section class="view" id="view-list" hidden>
 <div class="sec-title"><span>取引履歴</span><em>RECORDS</em></div>
 <div class="filters">
@@ -208,6 +183,7 @@
 @media(max-width:640px){.tb-center{display:none}.stat-txt{display:none}}
 @media(max-width:560px){.kpi-grid{grid-template-columns:1fr}.kpi-grid.two{grid-template-columns:1fr}.brand{font-size:20px}.sec-title span{font-size:21px}}
 @media(max-width:400px){.kpi-val{font-size:24px}.kpi-val.sub{font-size:22px}}
+.ent-block{border:1px solid var(--line);padding:14px;margin-top:4px}.ent-block-title{font-size:12px;letter-spacing:1px;margin-bottom:12px;color:var(--amber)}.ent-row{display:grid;grid-template-columns:1fr 1fr 1fr 32px;gap:8px;margin-bottom:10px;align-items:end}.ent-row .ent-f{display:flex;flex-direction:column;gap:4px}.ent-row .ent-f label{font-size:10px;color:var(--dim);letter-spacing:1px}.ent-row input,.ent-row select{background:#080a06;border:1px solid var(--line);color:var(--txt);font-family:var(--mono);font-size:14px;padding:9px 10px;outline:none;width:100%}.ent-row input:focus,.ent-row select:focus{border-color:var(--orange)}.ent-row .rm-row{background:none;border:1px solid var(--line);color:var(--red);cursor:pointer;height:38px;font-size:14px;line-height:1}.ent-row .rm-row:hover{background:var(--red);color:#000}.add-row{background:transparent;border:1px dashed var(--line);color:var(--amber);font-family:var(--mono);font-size:12px;padding:8px 14px;cursor:pointer;letter-spacing:1px;margin-top:2px}.add-row:hover{border-color:var(--amber);color:var(--txt)}.add-row.rev{color:var(--green)}.add-row.rev:hover{border-color:var(--green)}.ent-custom{margin-top:6px}@media(max-width:560px){.ent-row{grid-template-columns:1fr 1fr;}.ent-row .rm-row{grid-column:span 2;width:auto}}
 </style>
 <script>
 (function(){
@@ -236,30 +212,55 @@ var curType='rev';
 var editId=null;
 
 function initUI(){
-document.querySelectorAll('.nav-btn').forEach(function(b){b.onclick=function(){document.querySelectorAll('.nav-btn').forEach(function(x){x.classList.remove('active');});b.classList.add('active');document.querySelectorAll('.view').forEach(function(v){v.hidden=true;});$('#view-'+b.dataset.view).hidden=false;};});
-document.querySelectorAll('.seg-btn').forEach(function(b){b.onclick=function(){document.querySelectorAll('.seg-btn').forEach(function(x){x.classList.remove('active');});b.classList.add('active');curType=b.dataset.type;$('#fAmount').value='';fillCats();$('#payerLabel').textContent=curType==='rev'?'入金元 ／ SOURCE':'支払者 ／ PAID BY';};});
-$('#fPayer').onchange=function(){$('#fPayerCustom').style.display=this.value==='__custom'?'block':'none';};
-$('#fDate').value=new Date().toISOString().slice(0,10);
-fillCats();
-$('#submitBtn').onclick=submit;
-$('#filterType').onchange=renderList;
-$('#filterPayer').onchange=renderList;
-$('#filterMonth').onchange=renderList;
-$('#csvBtn').onclick=exportCSV;
+document.querySelectorAll(".nav-btn").forEach(function(b){b.onclick=function(){if(b.dataset.view==="entry"&&!editId){resetEntry();}document.querySelectorAll(".nav-btn").forEach(function(x){x.classList.remove("active");});b.classList.add("active");document.querySelectorAll(".view").forEach(function(v){v.hidden=true;});$("#view-"+b.dataset.view).hidden=false;};});
+$("#fDate").value=new Date().toISOString().slice(0,10);
+$("#addRev").onclick=function(){addRow("rev");};
+$("#addCost").onclick=function(){addRow("cost");};
+$("#submitBtn").onclick=submit;
+$("#filterType").onchange=renderList;
+$("#filterPayer").onchange=renderList;
+$("#filterMonth").onchange=renderList;
+$("#csvBtn").onclick=exportCSV;
+resetEntry();
 }
+var rowSeq=0;
+function payerOptions(sel){return ["東小太郎","渡邉旐都","会社"].map(function(p){return "<option"+(p===sel?" selected":"")+">"+esc(p)+"</option>";}).join("")+"<option value=\"__custom\""+(sel&&["東小太郎","渡邉旐都","会社"].indexOf(sel)<0?" selected":"")+">＋ 自由入力</option>";}
+function catOptions(type,sel){return CATS[type].map(function(c){return "<option"+(c===sel?" selected":"")+">"+esc(c)+"</option>";}).join("");}
+function addRow(type,vals){vals=vals||{};var wrap=$(type==="rev"?"#revRows":"#costRows");var id="r"+(rowSeq++);var div=document.createElement("div");div.className="ent-row";div.dataset.rid=id;div.dataset.type=type;
+var payerLabel=type==="rev"?"入金元":"支払者";
+var customKnown=["東小太郎","渡邉旐都","会社"];
+var isCustom=vals.payer&&customKnown.indexOf(vals.payer)<0;
+div.innerHTML="<div class=\"ent-f\"><label>金額 (円)</label><input type=\"number\" class=\"r-amount\" placeholder=\"0\" inputmode=\"numeric\" min=\"1\" step=\"1\" value=\""+(vals.amount!=null?vals.amount:"")+"\"></div>"+"<div class=\"ent-f\"><label>区分</label><select class=\"r-cat\">"+catOptions(type,vals.cat)+"</select></div>"+"<div class=\"ent-f\"><label>"+payerLabel+"</label><select class=\"r-payer\">"+payerOptions(vals.payer)+"</select><input type=\"text\" class=\"r-payer-custom ent-custom\" placeholder=\"名称を入力\" style=\"display:"+(isCustom?"block":"none")+"\" value=\""+(isCustom?esc(vals.payer):"")+"\"></div>"+"<button type=\"button\" class=\"rm-row\" title=\"削除\">x</button>";
+wrap.appendChild(div);
+div.querySelector(".r-payer").onchange=function(){div.querySelector(".r-payer-custom").style.display=this.value==="__custom"?"block":"none";};
+div.querySelector(".rm-row").onclick=function(){div.parentNode.removeChild(div);};
+return div;}
+function resetEntry(){editId=null;rowSeq=0;$("#revRows").innerHTML="";$("#costRows").innerHTML="";$("#fProject").value="";$("#fDate").value=new Date().toISOString().slice(0,10);addRow("rev");addRow("cost");$("#submitBtn").textContent="記録する ／ COMMIT";$("#addRev").style.display="";$("#addCost").style.display="";}
 
 function fillCats(){var sel=$('#fCat');sel.innerHTML='';CATS[curType].forEach(function(c){var o=document.createElement('option');o.textContent=c;sel.appendChild(o);});}
 function updateProjectList(){var dl=$('#projectList');if(!dl)return;var projects=data.map(function(t){return t.project;}).filter(Boolean).filter(function(v,i,a){return a.indexOf(v)===i;});dl.innerHTML=projects.map(function(p){return '<option value="'+esc(p)+'">';}).join('');}
 
 function submit(){
-var amt=parseFloat($('#fAmount').value);
-if(!amt||amt<=0||!Number.isInteger(amt)){flash('正の整数で入力してください',true);return;}
-var payer=$('#fPayer').value;
-if(payer==='__custom')payer=($('#fPayerCustom').value||'不明').trim();
-var rec={id:editId||(Date.now()+''+Math.floor(Math.random()*999)),type:curType,date:$('#fDate').value||new Date().toISOString().slice(0,10),amount:Math.round(amt),cat:$('#fCat').value,payer:payer,project:($('#fProject').value||'').trim(),memo:($('#fMemo').value||'').trim()};
-if(editId){data=data.map(function(t){return t.id===editId?rec:t;});editId=null;$('#submitBtn').textContent='記録する ／ COMMIT';}
-else{data.push(rec);}
-save();$('#fAmount').value='';$('#fProject').value='';$('#fMemo').value='';flash('記録しました ／ COMMITTED',false);renderAll();updateProjectList();
+var date=$("#fDate").value||new Date().toISOString().slice(0,10);
+var project=($("#fProject").value||"").trim();
+var rows=Array.prototype.slice.call(document.querySelectorAll(".ent-row"));
+var recs=[];var hadInput=false;var err=null;
+rows.forEach(function(div){
+var raw=div.querySelector(".r-amount").value;
+if(raw===""||raw==null)return;
+hadInput=true;
+var amt=parseFloat(raw);
+if(!amt||amt<=0||!Number.isInteger(amt)){err="金額は正の整数で入力してください";return;}
+var type=div.dataset.type;
+var payerSel=div.querySelector(".r-payer");var payer=payerSel.value;
+if(payer==="__custom")payer=(div.querySelector(".r-payer-custom").value||"不明").trim();
+recs.push({id:(Date.now()+""+Math.floor(Math.random()*99999)),type:type,date:date,amount:Math.round(amt),cat:div.querySelector(".r-cat").value,payer:payer,project:project,memo:""});
+});
+if(err){flash(err,true);return;}
+if(!hadInput||!recs.length){flash("金額を1つ以上入力してください",true);return;}
+if(editId){data=data.filter(function(t){return t.id!==editId;});data.push(recs[0]);editId=null;}
+else{recs.forEach(function(r){data.push(r);});}
+save();flash(recs.length+"件 記録しました ／ COMMITTED",false);renderAll();updateProjectList();resetEntry();
 }
 
 function flash(msg,err){var el=$('#formMsg');el.textContent=msg;el.style.color=err?'var(--red)':'var(--green)';setTimeout(function(){if(el.textContent===msg)el.textContent='';},2500);}
@@ -269,19 +270,15 @@ window.__del=del;
 
 function startEdit(id){
 var t=data.filter(function(x){return x.id===id;})[0];if(!t)return;
-document.querySelectorAll('.nav-btn').forEach(function(x){x.classList.remove('active');});
-document.querySelector('[data-view="entry"]').classList.add('active');
-document.querySelectorAll('.view').forEach(function(v){v.hidden=true;});
-$('#view-entry').hidden=false;
-document.querySelectorAll('.seg-btn').forEach(function(b){b.classList.toggle('active',b.dataset.type===t.type);});
-curType=t.type;fillCats();
-$('#fDate').value=t.date;$('#fAmount').value=t.amount;$('#fCat').value=t.cat;
-var payerSel=$('#fPayer');var knownOpts=Array.from(payerSel.options).map(function(o){return o.value;});
-if(knownOpts.indexOf(t.payer)>=0){payerSel.value=t.payer;$('#fPayerCustom').style.display='none';}
-else{payerSel.value='__custom';$('#fPayerCustom').value=t.payer;$('#fPayerCustom').style.display='block';}
-$('#fProject').value=t.project||'';$('#fMemo').value=t.memo||'';
-$('#payerLabel').textContent=curType==='rev'?'入金元 ／ SOURCE':'支払者 ／ PAID BY';
-editId=id;$('#submitBtn').textContent='更新する ／ UPDATE';window.scrollTo(0,0);
+document.querySelectorAll(".nav-btn").forEach(function(x){x.classList.remove("active");});
+document.querySelector("[data-view=\"entry\"]").classList.add("active");
+document.querySelectorAll(".view").forEach(function(v){v.hidden=true;});
+$("#view-entry").hidden=false;
+rowSeq=0;$("#revRows").innerHTML="";$("#costRows").innerHTML="";
+$("#fDate").value=t.date;$("#fProject").value=t.project||"";
+addRow(t.type,{amount:t.amount,cat:t.cat,payer:t.payer});
+$("#addRev").style.display="none";$("#addCost").style.display="none";
+editId=id;$("#submitBtn").textContent="更新する ／ UPDATE";window.scrollTo(0,0);
 }
 window.__edit=startEdit;
 
