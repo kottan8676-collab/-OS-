@@ -396,39 +396,31 @@ function renderList(){
 }
 
 function renderProject(){
-  const map={};
-  data.forEach(t=>{
-    const proj=t.project||'（案件なし）';
-    const cat=t.cat;
-    const type=t.type;
-    if(!map[proj])map[proj]={rev:0,cost:0,cats:{}};
-    if(type==='rev')map[proj].rev+=t.amount;else map[proj].cost+=t.amount;
-    const catKey=type+':'+cat;
-    if(!map[proj].cats[catKey])map[proj].cats[catKey]={type,cat,amount:0};
-    map[proj].cats[catKey].amount+=t.amount;
-  });
-  const el=$('#projTable');
-  if(!Object.keys(map).length){el.innerHTML='<div class="empty">記録なし ／ NO DATA</div>';return;}
-  const rows=Object.entries(map).sort((a,b)=>(b[1].rev-b[1].cost)-(a[1].rev-a[1].cost));
-  el.innerHTML=rows.map(([proj,v])=>{
-    const net=v.rev-v.cost;
-    const catRows=Object.values(v.cats).sort((a,b)=>b.amount-a.amount);
-    const revRows=catRows.filter(c=>c.type==='rev');
-    const costRows=catRows.filter(c=>c.type==='cost');
-    const makeRows=arr=>arr.map(c=>`<div class="p-row" style="grid-template-columns:20px 1fr minmax(90px,auto)"><div></div><div class="name" style="color:var(--dim);font-size:12px">${esc(c.cat)}</div><div class="num ${c.type==='rev'?'amt-rev':'amt-cost'}">${c.type==='rev'?'+':'−'}${yen(c.amount)}</div></div>`).join('');
-    return `<div class="p-group">
-<div class="p-group-header">
-<div class="p-group-title">${esc(proj)}</div>
-<div class="p-group-summary"><span class="amt-rev">+${yen(v.rev)}</span> − <span class="amt-cost">${yen(v.cost)}</span> = <span style="color:${net>=0?'var(--amber)':'var(--red)'}">${yen(net)}</span></div>
-</div>
-<div class="p-group-body">
-${revRows.length?'<div class="p-row head" style="grid-template-columns:20px 1fr minmax(90px,auto)"><div></div><div>売上 区分</div><div class="num">金額</div></div>'+makeRows(revRows):''}
-${costRows.length?'<div class="p-row head" style="grid-template-columns:20px 1fr minmax(90px,auto);margin-top:8px"><div></div><div>費用 区分</div><div class="num">金額</div></div>'+makeRows(costRows):''}
-</div>
-</div>`;
-  }).join('');
+const map={};
+data.forEach(t=>{
+const proj=t.project||'\uff08\u6848\u4ef6\u306a\u3057\uff09';
+const type=t.type;
+if(!map[proj])map[proj]={rev:0,cost:0,cats:{}};
+if(type==='rev')map[proj].rev+=t.amount;else map[proj].cost+=t.amount;
+const catKey=type+':'+t.cat;
+if(!map[proj].cats[catKey])map[proj].cats[catKey]={type,cat:t.cat,amount:0};
+map[proj].cats[catKey].amount+=t.amount;
+});
+const el=$('#projTable');
+if(!Object.keys(map).length){el.innerHTML='<div class="empty">\u8a18\u9332\u306a\u3057 \uff0f NO DATA</div>';return;}
+const rows=Object.entries(map).sort((a,b)=>(b[1].rev-b[1].cost)-(a[1].rev-a[1].cost));
+el.innerHTML=rows.map(function(entry){
+var proj=entry[0],v=entry[1];
+var net=v.rev-v.cost;
+var catArr=Object.values(v.cats).sort(function(a,b){return b.amount-a.amount;});
+var revRows=catArr.filter(function(c){return c.type==='rev';});
+var costRows=catArr.filter(function(c){return c.type==='cost';});
+function makeRow(c){return '<div class="p-row" style="grid-template-columns:20px 1fr minmax(90px,auto)"><div></div><div class="name" style="color:var(--dim);font-size:12px">'+esc(c.cat)+'</div><div class="num '+(c.type==='rev'?'amt-rev':'amt-cost')+'">'+(c.type==='rev'?'+':'\u2212')+yen(c.amount)+'</div></div>';}
+var revHead=revRows.length?'<div class="p-row head" style="grid-template-columns:20px 1fr minmax(90px,auto)"><div></div><div>\u58f2\u4e0a \u533a\u5206</div><div class="num">\u91d1\u984d</div></div>'+revRows.map(makeRow).join(''):'';
+var costHead=costRows.length?'<div class="p-row head" style="grid-template-columns:20px 1fr minmax(90px,auto);margin-top:8px"><div></div><div>\u8cbb\u7528 \u533a\u5206</div><div class="num">\u91d1\u984d</div></div>'+costRows.map(makeRow).join(''):'';
+return '<div class="p-group">'+'<div class="p-group-header">'+'<div class="p-group-title">'+esc(proj)+'</div>'+'<div class="p-group-summary"><span class="amt-rev">+'+yen(v.rev)+'</span> \u2212 <span class="amt-cost">'+yen(v.cost)+'</span> = <span style="color:'+(net>=0?'var(--amber)':'var(--red)')+'">'+yen(net)+'</span></div>'+'</div>'+'<div class="p-group-body">'+revHead+costHead+'</div>'+'</div>';
+}).join('');
 }
-
 function renderSettle(){
   const cost={};data.filter(t=>t.type==='cost').forEach(t=>cost[t.payer]=(cost[t.payer]||0)+t.amount);
   const ce=$('#settleTable');
