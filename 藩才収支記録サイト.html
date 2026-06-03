@@ -460,13 +460,14 @@ function tickClock(){var d=new Date();var p=function(n){return (n+'').padStart(2
 <script>(function(){
 var DOC = function(){ return window.__db.collection("appdata").doc("transactions"); };
 window.__cache = "[]";
-var started=false, ready=false;
+var started=false, ready=false, lastJSON="";
 window.storage = {
   get: function(k){ return window.__cache; },
   set: function(k, v){
      window.__cache = v;
      if(ready){
         var arr; try{ arr = JSON.parse(v); }catch(e){ arr = []; }
+        lastJSON = v;
         DOC().set({ items: arr, updatedAt: Date.now(), updatedBy: (window.__user&&window.__user.email)||"" }).catch(function(e){ console.error("save failed", e); });
      }
      return true;
@@ -476,15 +477,24 @@ function pinUser(){
   var sel=document.getElementById("currentUser");
   if(sel && window.__slot){ sel.value=window.__slot; sel.disabled=true; sel.style.opacity="0.85"; }
 }
-function rerender(){ if(typeof renderAll==="function"){ try{ renderAll(); }catch(e){ console.error(e); } } pinUser(); }
+function rerender(){
+  pinUser();
+  try{
+    var nav=document.querySelector("nav");
+    var active=nav?nav.querySelector("button.active"):null;
+    if(!active && nav){ active=nav.querySelector("button"); }
+    if(active){ active.click(); }
+  }catch(e){ console.error("rerender err", e); }
+}
 window.__startSync = function(){
   if(started) return; started=true;
   pinUser();
   DOC().onSnapshot(function(snap){
      var items = (snap.exists && snap.data() && snap.data().items) ? snap.data().items : [];
-     window.__cache = JSON.stringify(items);
+     var js = JSON.stringify(items);
+     window.__cache = js;
      ready = true;
-     rerender();
+     if(js!==lastJSON){ lastJSON=js; rerender(); }
   }, function(err){ console.error("snapshot error", err); ready=true; });
 };
 document.addEventListener("DOMContentLoaded", pinUser);
