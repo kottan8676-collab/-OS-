@@ -8,7 +8,7 @@ window.__db = firebase.firestore();
 window.__ALLOWED = ["kottan8676@gmail.com","ayato.watanabe1220@gmail.com"];
 window.__SLOT = {"kottan8676@gmail.com":"A","ayato.watanabe1220@gmail.com":"B"};
 </script>
-<style>#fbLoginOverlay{position:fixed;inset:0;z-index:99999;background:#0f1419;display:flex;align-items:center;justify-content:center;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;}#fbLoginCard{background:#1a2129;border:1px solid #2b3742;border-radius:16px;padding:32px 28px;width:340px;max-width:90vw;box-shadow:0 10px 40px rgba(0,0,0,.5);}#fbLoginCard h2{margin:0 0 4px;color:#fff;font-size:20px;text-align:center;}#fbLoginCard .sub{color:#8a97a3;font-size:12px;text-align:center;margin-bottom:20px;}#fbLoginCard label{display:block;color:#b8c2cc;font-size:12px;margin:12px 0 4px;}#fbLoginCard input{width:100%;box-sizing:border-box;padding:11px 12px;border-radius:9px;border:1px solid #33414d;background:#0f1419;color:#fff;font-size:14px;}#fbLoginCard input:focus{outline:none;border-color:#4a90d9;}#fbLoginBtn{width:100%;margin-top:20px;padding:12px;border:none;border-radius:9px;background:#4a90d9;color:#fff;font-size:15px;font-weight:600;cursor:pointer;}#fbLoginBtn:hover{background:#3a7cc4;}#fbLoginBtn:disabled{opacity:.6;cursor:default;}#fbLoginErr{color:#ff6b6b;font-size:12px;margin-top:12px;text-align:center;min-height:16px;}</style><div id="fbLoginOverlay"><div id="fbLoginCard"><h2>藩才 会計管理</h2><div class="sub">登録済みのメールアドレスでログイン</div><label>メールアドレス</label><input id="fbEmail" type="email" autocomplete="username" placeholder="you@gmail.com"><label>パスワード</label><input id="fbPass" type="password" autocomplete="current-password" placeholder="パスワード"><button id="fbLoginBtn">ログイン</button><div id="fbLoginErr"></div></div></div><script>(function(){
+<style>#fbLoginOverlay{position:fixed;inset:0;z-index:99999;background:#0f1419;display:flex;align-items:center;justify-content:center;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;}#fbLoginCard{background:#1a2129;border:1px solid #2b3742;border-radius:16px;padding:32px 28px;width:340px;max-width:90vw;box-shadow:0 10px 40px rgba(0,0,0,.5);}#fbLoginCard h2{margin:0 0 4px;color:#fff;font-size:20px;text-align:center;}#fbLoginCard .sub{color:#8a97a3;font-size:12px;text-align:center;margin-bottom:20px;}#fbLoginCard label{display:block;color:#b8c2cc;font-size:12px;margin:12px 0 4px;}#fbLoginCard input{width:100%;box-sizing:border-box;padding:11px 12px;border-radius:9px;border:1px solid #33414d;background:#0f1419;color:#fff;font-size:14px;}#fbLoginCard input:focus{outline:none;border-color:#4a90d9;}#fbLoginBtn{width:100%;margin-top:20px;padding:12px;border:none;border-radius:9px;background:#4a90d9;color:#fff;font-size:15px;font-weight:600;cursor:pointer;}#fbLoginBtn:hover{background:#3a7cc4;}#fbLoginBtn:disabled{opacity:.6;cursor:default;}#fbLoginErr{color:#ff6b6b;font-size:12px;margin-top:12px;text-align:center;min-height:16px;}</style><div id="fbLoginOverlay"><div id="fbLoginCard"><h2>藩才 会計管理</h2><div class="sub">登録済みのメールアドレスでログイン</div><label>メールアドレス</label><input id="fbEmail" type="email" autocomplete="username" placeholder="you@gmail.com"><label>パスワード</label><input id="fbPass" type="password" autocomplete="current-password" placeholder="パスワード"><button id="fbLoginBtn">ログイン</button><div id="fbResetWrap" style="text-align:center;margin-top:14px;"><a id="fbResetLink" href="#" style="color:#7fb0e0;font-size:12px;text-decoration:underline;cursor:pointer;">初めての方・パスワードを設定/再設定</a></div><div id="fbLoginErr"></div></div></div><script>(function(){
 function $(id){return document.getElementById(id);}
 function showErr(m){var e=$("fbLoginErr"); if(e) e.textContent=m||"";}
 function doLogin(){
@@ -26,9 +26,25 @@ function doLogin(){
     else{showErr("ログインに失敗しました: "+c);}
   });
 }
+function showMsg(m, ok){ var e=$("fbLoginErr"); if(e){ e.textContent=m||""; e.style.color = ok ? "#5ad17a" : "#ff6b6b"; } }
+function doReset(){
+  var em=($("fbEmail").value||"").trim().toLowerCase();
+  if(!em){ showMsg("メールアドレスを入力してから押してください", false); return; }
+  if(window.__ALLOWED.indexOf(em)===-1){ showMsg("このメールアドレスは許可されていません", false); return; }
+  showMsg("送信中...", true);
+  window.__auth.sendPasswordResetEmail(em).then(function(){
+    showMsg(em+" にパスワード設定用メールを送信しました。メールのリンクからパスワードを決めてください。", true);
+  }).catch(function(err){
+    var c=err&&err.code||"";
+    if(c.indexOf("user-not-found")>-1){ showMsg("このアドレスのアカウント枠がまだ作成されていません", false); }
+    else if(c.indexOf("too-many-requests")>-1){ showMsg("送信回数が多すぎます。しばらく後でお試しください", false); }
+    else{ showMsg("送信に失敗しました: "+c, false); }
+  });
+}
 document.addEventListener("DOMContentLoaded",function(){
   var btn=$("fbLoginBtn"); if(btn) btn.addEventListener("click",doLogin);
   var pass=$("fbPass"); if(pass) pass.addEventListener("keydown",function(e){if(e.key==="Enter")doLogin();});
+  var rlink=$("fbResetLink"); if(rlink) rlink.addEventListener("click",function(e){ e.preventDefault(); doReset(); });
 });
 window.__auth.onAuthStateChanged(function(user){
   var ov=document.getElementById("fbLoginOverlay");
