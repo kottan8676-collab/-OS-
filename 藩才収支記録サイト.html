@@ -478,7 +478,7 @@ var DOC = function(){ return window.__db.collection("appdata").doc("transactions
 window.__cache = "[]";
 var started=false, ready=false, lastJSON="";
 window.storage = {
-  get: function(k){ return Promise.resolve(window.__cache); },
+  get: function(k){ return Promise.resolve({value: window.__cache}); },
   set: function(k, v){
      window.__cache = v;
      if(ready){
