@@ -424,7 +424,7 @@ if(!arr.length){el.innerHTML="<div class=\"empty\">該当なし / NO DATA</div>"
 el.innerHTML=arr.map(function(t){
 var locked=isLocked(t);
 var ap=t.approvals||{};
-var apBtns=APPROVERS.map(function(p){var on=!!ap[p.key];var dis=p.key!==currentUser;return "<button class=\"ap-btn"+(on?" on":"")+"\" data-id=\""+t.id+"\" data-act=\"ap\" data-key=\""+p.key+"\" title=\""+p.label+"\""+(dis?" disabled":"")+">"+(on?"☑":"☐")+" "+esc(p.label.split("@")[0])+"</button>";}).join("");
+var apBtns=APPROVERS.map(function(p){var on=!!ap[p.key];var dis=p.key!==window.__slot;return "<button class=\"ap-btn"+(on?" on":"")+"\" data-id=\""+t.id+"\" data-act=\"ap\" data-key=\""+p.key+"\" title=\""+p.label+"\""+(dis?" disabled":"")+">"+(on?"☑":"☐")+" "+esc(p.label.split("@")[0])+"</button>";}).join("");
 var lockTag=locked?"<span class=\"lock-tag\">🔒 ロック済</span>":"";
 var editBtns=locked?"<span class=\"lk\">🔒</span>":("<button class=\"edt\" data-id=\""+t.id+"\" data-act=\"edit\" title=\"編集\">e</button><button class=\"del\" data-id=\""+t.id+"\" data-act=\"del\" title=\"削除\">x</button>");
 return "<div class=\"t-row"+(locked?" locked":"")+"\"><div class=\"t-date\">"+t.date+"</div><div class=\"t-main\"><b><span class=\"tag "+t.type+"\">"+(t.type==="rev"?"売上":"費用")+"</span>"+esc(t.project||t.cat)+lockTag+"</b><span class=\"t-sub\">"+esc(t.cat)+" / "+esc(t.payer)+(t.memo?" / "+esc(t.memo):"")+"</span><span class=\"ap-row\">"+apBtns+"</span></div><div class=\"t-amt "+(t.type==="rev"?"amt-rev":"amt-cost")+"\">"+(t.type==="rev"?"+":"-")+yen(t.amount)+"</div><div class=\"t-act\">"+editBtns+"</div></div>";
@@ -484,7 +484,7 @@ window.storage = {
      if(ready){
         var arr; try{ arr = JSON.parse(v); }catch(e){ arr = []; }
         lastJSON = v;
-        DOC().set({ items: arr, updatedAt: Date.now(), updatedBy: (window.__user&&window.__user.email)||"" }).catch(function(e){ console.error("save failed", e); });
+        DOC().set({ items: arr, updatedAt: Date.now(), updatedBy: (window.__user&&window.__user.email)||"" }, {merge:true}).catch(function(e){ console.error("save failed", e); });
      }
      return true;
   }
@@ -511,7 +511,7 @@ window.__startSync = function(){
      window.__cache = js;
      ready = true;
      if(js!==lastJSON){ lastJSON=js; rerender(); }
-  }, function(err){ console.error("snapshot error", err); ready=true; });
+  }, function(err){ console.error("snapshot error", err); });
 };
 document.addEventListener("DOMContentLoaded", pinUser);
 })();</script>
