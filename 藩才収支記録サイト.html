@@ -1,4 +1,49 @@
-<script>!function(){var p=sessionStorage.getItem('banzai_auth');if(p!=='ok'){var inp=prompt('パスワードを入力してください');if(inp==='yoyuudebanzai'){sessionStorage.setItem('banzai_auth','ok');}else{document.write('<div style="background:#000;color:#f00;height:100vh;display:flex;align-items:center;justify-content:center;font-size:2em;">アクセス拒否</div>');document.close();throw'auth';}}}();</script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+firebase.initializeApp({"apiKey":"AIzaSyDj2loIJ2pUIhDuXP40byODtadQz520NrM","authDomain":"banzaikaikei.firebaseapp.com","projectId":"banzaikaikei","storageBucket":"banzaikaikei.firebasestorage.app","messagingSenderId":"141538369866","appId":"1:141538369866:web:cdebba26df6de7923e21b3","measurementId":"G-SLQ822SDGX"});
+window.__auth = firebase.auth();
+window.__db = firebase.firestore();
+window.__ALLOWED = ["kottan8676@gmail.com","ayato.watanabe1220@gmail.com"];
+window.__SLOT = {"kottan8676@gmail.com":"A","ayato.watanabe1220@gmail.com":"B"};
+</script>
+<style>#fbLoginOverlay{position:fixed;inset:0;z-index:99999;background:#0f1419;display:flex;align-items:center;justify-content:center;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;}#fbLoginCard{background:#1a2129;border:1px solid #2b3742;border-radius:16px;padding:32px 28px;width:340px;max-width:90vw;box-shadow:0 10px 40px rgba(0,0,0,.5);}#fbLoginCard h2{margin:0 0 4px;color:#fff;font-size:20px;text-align:center;}#fbLoginCard .sub{color:#8a97a3;font-size:12px;text-align:center;margin-bottom:20px;}#fbLoginCard label{display:block;color:#b8c2cc;font-size:12px;margin:12px 0 4px;}#fbLoginCard input{width:100%;box-sizing:border-box;padding:11px 12px;border-radius:9px;border:1px solid #33414d;background:#0f1419;color:#fff;font-size:14px;}#fbLoginCard input:focus{outline:none;border-color:#4a90d9;}#fbLoginBtn{width:100%;margin-top:20px;padding:12px;border:none;border-radius:9px;background:#4a90d9;color:#fff;font-size:15px;font-weight:600;cursor:pointer;}#fbLoginBtn:hover{background:#3a7cc4;}#fbLoginBtn:disabled{opacity:.6;cursor:default;}#fbLoginErr{color:#ff6b6b;font-size:12px;margin-top:12px;text-align:center;min-height:16px;}</style><div id="fbLoginOverlay"><div id="fbLoginCard"><h2>藩才 会計管理</h2><div class="sub">登録済みのメールアドレスでログイン</div><label>メールアドレス</label><input id="fbEmail" type="email" autocomplete="username" placeholder="you@gmail.com"><label>パスワード</label><input id="fbPass" type="password" autocomplete="current-password" placeholder="パスワード"><button id="fbLoginBtn">ログイン</button><div id="fbLoginErr"></div></div></div><script>(function(){
+function $(id){return document.getElementById(id);}
+function showErr(m){var e=$("fbLoginErr"); if(e) e.textContent=m||"";}
+function doLogin(){
+  var em=($("fbEmail").value||"").trim().toLowerCase();
+  var pw=$("fbPass").value||"";
+  if(!em||!pw){showErr("メールアドレスとパスワードを入力してください");return;}
+  if(window.__ALLOWED.indexOf(em)===-1){showErr("このメールアドレスは許可されていません");return;}
+  var btn=$("fbLoginBtn"); btn.disabled=true; showErr("");
+  window.__auth.signInWithEmailAndPassword(em,pw).catch(function(err){
+    btn.disabled=false;
+    var c=err&&err.code||"";
+    if(c.indexOf("wrong-password")>-1||c.indexOf("invalid-credential")>-1){showErr("パスワードが正しくありません");}
+    else if(c.indexOf("user-not-found")>-1){showErr("アカウントが見つかりません");}
+    else if(c.indexOf("too-many-requests")>-1){showErr("試行回数が多すぎます。後でお試しください");}
+    else{showErr("ログインに失敗しました: "+c);}
+  });
+}
+document.addEventListener("DOMContentLoaded",function(){
+  var btn=$("fbLoginBtn"); if(btn) btn.addEventListener("click",doLogin);
+  var pass=$("fbPass"); if(pass) pass.addEventListener("keydown",function(e){if(e.key==="Enter")doLogin();});
+});
+window.__auth.onAuthStateChanged(function(user){
+  var ov=document.getElementById("fbLoginOverlay");
+  if(user && window.__ALLOWED.indexOf((user.email||"").toLowerCase())>-1){
+    window.__user=user;
+    window.__slot=window.__SLOT[(user.email||"").toLowerCase()];
+    try{localStorage.setItem("banzai_currentUser",window.__slot);}catch(e){}
+    if(ov) ov.style.display="none";
+    if(typeof window.__startSync==="function") window.__startSync();
+  } else {
+    if(user){window.__auth.signOut();}
+    if(ov) ov.style.display="flex";
+  }
+});
+})();</script>
 <div id="root">
 <div class="boot" id="boot">
 <div class="boot-inner">
@@ -411,3 +456,36 @@ function esc(s){return(s+'').replace(/[&<>"]/g,function(c){return {'&':'&amp;','
 function tickClock(){var d=new Date();var p=function(n){return (n+'').padStart(2,'0');};$('#clock').textContent=p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());}
 })();
 </script>
+
+<script>(function(){
+var DOC = function(){ return window.__db.collection("appdata").doc("transactions"); };
+window.__cache = "[]";
+var started=false, ready=false;
+window.storage = {
+  get: function(k){ return window.__cache; },
+  set: function(k, v){
+     window.__cache = v;
+     if(ready){
+        var arr; try{ arr = JSON.parse(v); }catch(e){ arr = []; }
+        DOC().set({ items: arr, updatedAt: Date.now(), updatedBy: (window.__user&&window.__user.email)||"" }).catch(function(e){ console.error("save failed", e); });
+     }
+     return true;
+  }
+};
+function pinUser(){
+  var sel=document.getElementById("currentUser");
+  if(sel && window.__slot){ sel.value=window.__slot; sel.disabled=true; sel.style.opacity="0.85"; }
+}
+function rerender(){ if(typeof renderAll==="function"){ try{ renderAll(); }catch(e){ console.error(e); } } pinUser(); }
+window.__startSync = function(){
+  if(started) return; started=true;
+  pinUser();
+  DOC().onSnapshot(function(snap){
+     var items = (snap.exists && snap.data() && snap.data().items) ? snap.data().items : [];
+     window.__cache = JSON.stringify(items);
+     ready = true;
+     rerender();
+  }, function(err){ console.error("snapshot error", err); ready=true; });
+};
+document.addEventListener("DOMContentLoaded", pinUser);
+})();</script>
