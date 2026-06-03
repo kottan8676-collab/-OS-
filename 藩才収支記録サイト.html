@@ -334,7 +334,7 @@ save();flash(recs.length+"件 記録しました ／ COMMITTED",false);renderAll
 function flash(msg,err){var el=$('#formMsg');el.textContent=msg;el.style.color=err?'var(--red)':'var(--green)';setTimeout(function(){if(el.textContent===msg)el.textContent='';},2500);}
 
 function del(id){var t=data.filter(function(x){return x.id===id;})[0];if(t&&isLocked(t)){flash("ロック中の取引は削除できません",true);return;}if(!confirm("この記録を削除しますか？"))return;data=data.filter(function(t){return t.id!==id;});save();renderAll();}
-window.__del=del;window.__refresh=function(){load();renderAll();};
+window.__del=del;window.__refresh=function(){load().then(renderAll);};
 var APPROVERS=[{key:"A",label:"kottan8676@gmail.com"},{key:"B",label:"ayato.watanabe1220@gmail.com"}];
 var currentUser=(function(){try{return localStorage.getItem("banzai_currentUser")||"A";}catch(e){return "A";}})();
 function setCurrentUser(u){currentUser=u;try{localStorage.setItem("banzai_currentUser",u);}catch(e){}renderAll();}
@@ -478,7 +478,7 @@ var DOC = function(){ return window.__db.collection("appdata").doc("transactions
 window.__cache = "[]";
 var started=false, ready=false, lastJSON="";
 window.storage = {
-  get: function(k){ return window.__cache; },
+  get: function(k){ return Promise.resolve(window.__cache); },
   set: function(k, v){
      window.__cache = v;
      if(ready){
