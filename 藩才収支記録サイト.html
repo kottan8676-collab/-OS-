@@ -122,6 +122,23 @@ window.__auth.onAuthStateChanged(function(user){
 <div class="panel"><div class="table" id="settleTable"></div></div>
 <div class="sec-title sm"><span>入金元別 売上</span><em>BY SOURCE</em></div>
 <div class="panel"><div class="table" id="sourceTable"></div></div>
+<div class="sec-title sm"><span>返済を記録</span><em>REPAYMENT</em></div>
+<p class="hint">立て替えた費用を返済したとき、その内容（誰へ・いくら・原資）を記録します。残りの立替額に反映されます。</p>
+<div class="panel form">
+<div class="ent-row" style="grid-template-columns:1fr 1fr!important">
+<div class="ent-f"><label>返済先（立替者）</label><input type="text" id="repPayer" lang="ja" inputmode="kana" autocapitalize="off" placeholder="例：東小太郎" list="repPayerList"><datalist id="repPayerList"></datalist></div>
+<div class="ent-f"><label>返済額 (円)</label><input type="number" id="repAmount" placeholder="0" inputmode="numeric" min="1" step="1"></div>
+</div>
+<div class="ent-row" style="grid-template-columns:1fr 1fr!important">
+<div class="ent-f"><label>原資（どこから返済したか）</label><select id="repSource"><option value="売上から">売上から</option><option value="会社資金から">会社資金から</option><option value="個人資金から">個人資金から</option><option value="その他">その他</option></select></div>
+<div class="ent-f"><label>日付</label><input type="date" id="repDate"></div>
+</div>
+<div class="ent-f"><label>詳細メモ（売上のどの分から充当した等）</label><input type="text" id="repMemo" lang="ja" inputmode="kana" autocapitalize="off" placeholder="例：5/30イベント売上から充当"></div>
+<button class="submit" id="repSubmit" style="margin-top:12px">返済を記録する ／ REPAY</button>
+<div class="form-msg" id="repMsg"></div>
+</div>
+<div class="sec-title sm"><span>返済履歴</span><em>REPAYMENT LOG</em></div>
+<div class="panel"><div class="table" id="repayTable"></div></div>
 </section>
 </main>
 <footer class="foot">藩才 管理会計システム ／ データはこのブラウザに保存されます</footer>
@@ -285,6 +302,8 @@ $("#filterPayer").onchange=renderList;
 $("#filterMonth").onchange=renderList;
 $("#csvBtn").onclick=exportCSV;
 var cu=$("#currentUser");if(cu){cu.value=currentUser;cu.onchange=function(){setCurrentUser(this.value);};}
+var rs=$('#repSubmit');if(rs)rs.onclick=submitRepay;
+var rd=$('#repDate');if(rd)rd.value=new Date().toISOString().slice(0,10);
 resetEntry();
 }
 var rowSeq=0;
@@ -360,7 +379,7 @@ window.__edit=startEdit;
 
 function exportCSV(){
 var hdr=["日付","種別","金額","区分","入金元/支払者","案件","メモ"].join(",");
-var rows=data.map(function(t){return [t.date,t.type==="rev"?"売上":"費用",t.amount,t.cat,t.payer,t.project,t.memo].map(function(v){return '"'+String(v).replace(/"/g,'""')+'"';}).join(",");});
+var rows=data.map(function(t){return [t.date,t.type==="rev"?"売上":(t.type==="repay"?"返済":"費用"),t.amount,t.cat,t.payer,t.project,t.memo].map(function(v){return '"'+String(v).replace(/"/g,'""')+'"';}).join(",");});
 var nl=String.fromCharCode(10);
 var bom=String.fromCharCode(65279);
 var csv=bom+hdr+nl+rows.join(nl);
@@ -370,8 +389,8 @@ a.download="banzai_"+new Date().toISOString().slice(0,10)+".csv";
 a.click();
 }
 
-function renderAll(){renderDash();renderList();renderProject();renderSettle();$('#recCount').textContent='REC '+data.length;}
-function totals(arr){var rev=0,cost=0;arr.forEach(function(t){if(t.type==='rev')rev+=t.amount;else cost+=t.amount;});return{rev:rev,cost:cost,net:rev-cost};}
+function renderAll(){renderDash();renderList();renderProject();renderSettle();renderRepay();updateRepPayerList();$('#recCount').textContent='REC '+data.length;}
+function totals(arr){var rev=0,cost=0;arr.forEach(function(t){if(t.type==='rev')rev+=t.amount;else if(t.type==='cost')cost+=t.amount;});return{rev:rev,cost:cost,net:rev-cost};}
 
 function renderDash(){
 var all=totals(data);$('#kRev').textContent=yen(all.rev);$('#kCost').textContent=yen(all.cost);
@@ -400,7 +419,7 @@ c.appendChild(col);
 
 function renderRecent(){
 var el=$('#recent');
-var arr=data.slice().sort(function(a,b){return b.date.localeCompare(a.date)||b.id.localeCompare(a.id);}).slice(0,6);
+var arr=data.filter(function(t){return t.type==='rev'||t.type==='cost';}).sort(function(a,b){return b.date.localeCompare(a.date)||b.id.localeCompare(a.id);}).slice(0,6);
 if(!arr.length){el.innerHTML='<div class="empty">記録なし ／ NO DATA</div>';return;}
 el.innerHTML=arr.map(function(t){return '<div class="row"><div class="r-left"><div><span class="tag '+t.type+'">'+(t.type==='rev'?'売上':'費用')+'</span>'+esc(t.project||t.cat)+'</div><div class="r-meta">'+t.date+' ／ '+esc(t.cat)+' ／ '+esc(t.payer)+(t.memo?' ／ '+esc(t.memo):'')+' </div></div><div class="'+(t.type==='rev'?'amt-rev':'amt-cost')+'">'+(t.type==='rev'?'+':'&#x2212;')+yen(t.amount)+'</div></div>';}).join('');
 }
@@ -415,7 +434,7 @@ var months=data.map(function(t){return t.date.slice(0,7);}).filter(function(v,i,
 var mSel=$("#filterMonth");var curM=mSel.value;
 mSel.innerHTML="<option value=\"all\">期間：すべて</option>"+months.map(function(m){return "<option value=\""+m+"\">"+m+"</option>";}).join("");
 mSel.value=Array.prototype.slice.call(mSel.options).some(function(o){return o.value===curM;})?curM:"all";
-var arr=data.slice().sort(function(a,b){return b.date.localeCompare(a.date)||b.id.localeCompare(a.id);});
+var arr=data.filter(function(t){return t.type==='rev'||t.type==='cost';}).sort(function(a,b){return b.date.localeCompare(a.date)||b.id.localeCompare(a.id);});
 if(ft!=="all")arr=arr.filter(function(t){return t.type===ft;});
 if(pSel.value!=="all")arr=arr.filter(function(t){return t.payer===pSel.value;});
 if(mSel.value!=="all")arr=arr.filter(function(t){return t.date.indexOf(mSel.value)===0;});
@@ -434,6 +453,7 @@ el.onclick=function(e){var btn=e.target.closest("button[data-act]");if(!btn)retu
 function renderProject(){
 var map={};
 data.forEach(function(t){
+if(t.type!=='rev'&&t.type!=='cost')return;
 var proj=t.project||'(案件なし)';
 if(!map[proj])map[proj]={rev:0,cost:0,cats:{}};
 if(t.type==='rev')map[proj].rev+=t.amount;else map[proj].cost+=t.amount;
@@ -456,11 +476,38 @@ return '<div class="p-group"><div class="p-group-header"><div class="p-group-tit
 }).join('');
 }
 
+function updateRepPayerList(){var dl=$('#repPayerList');if(!dl)return;var payers={};data.filter(function(t){return t.type==='cost';}).forEach(function(t){payers[t.payer]=true;});dl.innerHTML=Object.keys(payers).map(function(p){return '<option value="'+esc(p)+'">';}).join('');}
+function submitRepay(){
+var payer=($('#repPayer').value||'').trim();
+var raw=$('#repAmount').value;
+var source=$('#repSource').value||'';
+var date=$('#repDate').value||new Date().toISOString().slice(0,10);
+var memo=($('#repMemo').value||'').trim();
+var el=$('#repMsg');
+function rflash(m,err){el.textContent=m;el.style.color=err?'var(--red)':'var(--green)';setTimeout(function(){if(el.textContent===m)el.textContent='';},2500);}
+if(!payer){rflash('返済先（立替者）を入力してください',true);return;}
+if(raw===''||raw==null){rflash('返済額を入力してください',true);return;}
+var amt=parseFloat(raw);
+if(!amt||amt<=0||!Number.isInteger(amt)){rflash('返済額は正の整数で入力してください',true);return;}
+data.push({id:(Date.now()+''+Math.floor(Math.random()*99999)),type:'repay',date:date,amount:Math.round(amt),cat:source,payer:payer,project:'',memo:memo,approvals:{}});
+save();rflash('返済を記録しました ／ COMMITTED',false);$('#repPayer').value='';$('#repAmount').value='';$('#repMemo').value='';renderAll();
+}
+function renderRepay(){
+var el=$('#repayTable');if(!el)return;
+var arr=data.filter(function(t){return t.type==='repay';}).sort(function(a,b){return b.date.localeCompare(a.date)||b.id.localeCompare(a.id);});
+if(!arr.length){el.innerHTML='<div class="empty">返済記録なし ／ NO DATA</div>';return;}
+el.innerHTML=arr.map(function(t){return '<div class="t-row" style="grid-template-columns:78px 1fr auto 34px"><div class="t-date">'+t.date+'</div><div class="t-main"><b>'+esc(t.payer)+' へ返済</b><span class="t-sub">'+esc(t.cat||'原資不明')+(t.memo?' / '+esc(t.memo):'')+'</span></div><div class="t-amt amt-rev">'+yen(t.amount)+'</div><div class="t-act"><button class="del" data-id="'+t.id+'" data-act="delrep" title="削除">x</button></div></div>';}).join('');
+el.onclick=function(e){var btn=e.target.closest('button[data-act="delrep"]');if(!btn)return;var id=btn.dataset.id;if(!confirm('この返済記録を削除しますか？'))return;data=data.filter(function(x){return x.id!==id;});save();renderAll();};
+}
 function renderSettle(){
 var cost={};data.filter(function(t){return t.type==='cost';}).forEach(function(t){cost[t.payer]=(cost[t.payer]||0)+t.amount;});
-var ce=$('#settleTable');var cr=Object.keys(cost).map(function(k){return[k,cost[k]];}).sort(function(a,b){return b[1]-a[1];});
+var repaid={};data.filter(function(t){return t.type==='repay';}).forEach(function(t){repaid[t.payer]=(repaid[t.payer]||0)+t.amount;});
+var ce=$('#settleTable');
+var names=Object.keys(cost);Object.keys(repaid).forEach(function(k){if(names.indexOf(k)<0)names.push(k);});
+var cr=names.map(function(k){return[k,cost[k]||0,repaid[k]||0,(cost[k]||0)-(repaid[k]||0)];}).sort(function(a,b){return b[3]-a[3];});
 if(!cr.length){ce.innerHTML='<div class="empty">費用記録なし</div>';}
-else{var tot=cr.reduce(function(s,v){return s+v[1];},0);ce.innerHTML='<div class="p-row head" style="grid-template-columns:1fr minmax(72px,auto) minmax(72px,auto)"><div class="name">支払者 ／ PAID BY</div><div class="num">立替額</div><div class="num">割合</div></div>'+cr.map(function(kv){return '<div class="p-row" style="grid-template-columns:1fr minmax(72px,auto) minmax(72px,auto)"><div class="name">'+esc(kv[0])+'</div><div class="num amt-cost">'+yen(kv[1])+'</div><div class="num" style="color:var(--dim)">'+Math.round(kv[1]/tot*100)+'%</div></div>';}).join('')+'<div class="p-row" style="grid-template-columns:1fr minmax(72px,auto) minmax(72px,auto);border-top:1px solid var(--orange)"><div class="name" style="color:var(--amber)">合計</div><div class="num" style="color:var(--amber)">'+yen(tot)+'</div><div></div></div>';}
+else{var totC=cr.reduce(function(s,v){return s+v[1];},0);var totR=cr.reduce(function(s,v){return s+v[2];},0);var totRem=totC-totR;
+ce.innerHTML='<div class="p-row head" style="grid-template-columns:1fr repeat(3,minmax(64px,auto))"><div class="name">支払者 ／ PAID BY</div><div class="num">立替額</div><div class="num">返済済</div><div class="num">残り</div></div>'+cr.map(function(kv){return '<div class="p-row" style="grid-template-columns:1fr repeat(3,minmax(64px,auto))"><div class="name">'+esc(kv[0])+'</div><div class="num amt-cost">'+yen(kv[1])+'</div><div class="num amt-rev">'+(kv[2]?yen(kv[2]):'&#x2212;')+'</div><div class="num" style="color:'+(kv[3]>0?'var(--amber)':'var(--dim)')+'">'+yen(kv[3])+'</div></div>';}).join('')+'<div class="p-row" style="grid-template-columns:1fr repeat(3,minmax(64px,auto));border-top:1px solid var(--orange)"><div class="name" style="color:var(--amber)">合計</div><div class="num" style="color:var(--amber)">'+yen(totC)+'</div><div class="num amt-rev">'+yen(totR)+'</div><div class="num" style="color:var(--amber)">'+yen(totRem)+'</div></div>';}
 var rev={};data.filter(function(t){return t.type==='rev';}).forEach(function(t){rev[t.payer]=(rev[t.payer]||0)+t.amount;});
 var re=$('#sourceTable');var rr=Object.keys(rev).map(function(k){return[k,rev[k]];}).sort(function(a,b){return b[1]-a[1];});
 if(!rr.length){re.innerHTML='<div class="empty">売上記録なし</div>';return;}
