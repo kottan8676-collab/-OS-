@@ -332,7 +332,7 @@ var project=($("#fProject").value||"").trim();
 var rows=Array.prototype.slice.call(document.querySelectorAll(".ent-row"));
 var recs=[];var hadInput=false;var err=null;
 rows.forEach(function(div){
-var raw=div.querySelector(".r-amount").value;
+var amtEl=div.querySelector(".r-amount");if(!amtEl)return;var raw=amtEl.value;
 if(raw===""||raw==null)return;
 hadInput=true;
 var amt=parseFloat(raw);
