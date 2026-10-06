@@ -729,6 +729,38 @@ function rerender(){
     if(active){ active.click(); }
   }catch(e){ console.error("rerender err", e); }
 }
+/* ===== 2026-10-06 仮払金・返済の一括反映（管理者ログイン時に1回だけ実行） ===== */
+var PENDING_ID="mig20261006";
+function applyPending(items){
+  if(items.some(function(t){return String(t.id).indexOf(PENDING_ID)===0;})) return false;
+  var D="2026-10-06";
+  function rec(id,o){o.id=PENDING_ID+"-"+id;o.approvals={};o.project=o.project||"";o.memo=o.memo||"";return o;}
+  var add=[
+    rec("adv-azuma",{type:"adv_out",date:D,amount:330000,cat:"仮払金",payer:"東小太郎",memo:"自動車保険の支払い用"}),
+    rec("ins-azuma",{type:"cost",date:D,amount:239110,cat:"保険料",payer:"東小太郎",project:"自動車保険",memo:"自動車保険",fund:"advance"}),
+    rec("adv-watanabe",{type:"adv_out",date:D,amount:70000,cat:"仮払金",payer:"渡邉斐都",memo:"農業資材の購入用（にんにく・耕運機など）"}),
+    rec("repay-watanabe",{type:"repay",date:D,amount:39580,cat:"会社資金から",payer:"渡邉斐都",memo:"立替分の返済"})
+  ];
+  // 渡邉さんが仮払金で買った5件：支払者と出どころを付け替え
+  var targets=[[6380,"にんにく"],[40480,"耕運機"],[2218,"追肥"],[5631,"堆肥"],[1300,"耕運機油"]];
+  var moved=0;
+  targets.forEach(function(tg){
+    var hit=items.filter(function(t){
+      if(t.type!=="cost"||Number(t.amount)!==tg[0]||t.fund) return false;
+      var name=(t.cat||"")+" "+(t.project||"")+" "+(t.memo||"");
+      return name.indexOf(tg[1])>-1;
+    })[0];
+    if(hit){hit.payer="渡邉斐都";hit.fund="advance";moved++;}
+  });
+  var next=items.concat(add);
+  var js=JSON.stringify(next);
+  window.__cache=js; lastJSON=js;
+  DOC().set({items:next,updatedAt:Date.now(),updatedBy:(window.__user&&window.__user.email)||""},{merge:true})
+    .then(function(){console.log("[藩才] 仮払金・返済を反映しました（付け替え "+moved+"/5件）");})
+    .catch(function(e){console.error("pending apply failed",e);});
+  rerender(); if(window.__refresh)window.__refresh();
+  return true;
+}
 window.__startSync = function(){
   if(started) return; started=true;
   pinUser();
@@ -737,6 +769,7 @@ window.__startSync = function(){
      var js = JSON.stringify(items);
      window.__cache = js;
      ready = true;
+     if(window.__isOwner && applyPending(items)) return;
      if(js!==lastJSON){ lastJSON=js; rerender(); if(window.__refresh)window.__refresh(); }
   }, function(err){ console.error("snapshot error", err); });
 };
