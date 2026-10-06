@@ -5,8 +5,11 @@
 firebase.initializeApp({"apiKey":"AIzaSyDj2loIJ2pUIhDuXP40byODtadQz520NrM","authDomain":"banzaikaikei.firebaseapp.com","projectId":"banzaikaikei","storageBucket":"banzaikaikei.firebasestorage.app","messagingSenderId":"141538369866","appId":"1:141538369866:web:cdebba26df6de7923e21b3","measurementId":"G-SLQ822SDGX"});
 window.__auth = firebase.auth();
 window.__db = firebase.firestore();
-window.__ALLOWED = ["kottan8676@gmail.com","ayato.watanabe1220@gmail.com"];
+window.__OWNER = "kottan8676@gmail.com";            // 編集できるのはこのアカウントだけ
+window.__VIEWERS = [];                               // 閲覧専用アカウント（例："banzai.viewer@gmail.com"）
+window.__ALLOWED = ["kottan8676@gmail.com","ayato.watanabe1220@gmail.com"].concat(window.__VIEWERS);
 window.__SLOT = {"kottan8676@gmail.com":"A","ayato.watanabe1220@gmail.com":"B"};
+document.documentElement.classList.add("ro"); // ログイン確認までは閲覧扱い
 </script>
 <style>#fbLoginOverlay{position:fixed;inset:0;z-index:99999;background:#0f1419;display:flex;align-items:center;justify-content:center;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;}#fbLoginCard{background:#1a2129;border:1px solid #2b3742;border-radius:16px;padding:32px 28px;width:340px;max-width:90vw;box-shadow:0 10px 40px rgba(0,0,0,.5);}#fbLoginCard h2{margin:0 0 4px;color:#fff;font-size:20px;text-align:center;}#fbLoginCard .sub{color:#8a97a3;font-size:12px;text-align:center;margin-bottom:20px;}#fbLoginCard label{display:block;color:#b8c2cc;font-size:12px;margin:12px 0 4px;}#fbLoginCard input{width:100%;box-sizing:border-box;padding:11px 12px;border-radius:9px;border:1px solid #33414d;background:#0f1419;color:#fff;font-size:14px;}#fbLoginCard input:focus{outline:none;border-color:#4a90d9;}#fbLoginBtn{width:100%;margin-top:20px;padding:12px;border:none;border-radius:9px;background:#4a90d9;color:#fff;font-size:15px;font-weight:600;cursor:pointer;}#fbLoginBtn:hover{background:#3a7cc4;}#fbLoginBtn:disabled{opacity:.6;cursor:default;}#fbLoginErr{color:#ff6b6b;font-size:12px;margin-top:12px;text-align:center;min-height:16px;}</style><div id="fbLoginOverlay"><div id="fbLoginCard"><h2>藩才 会計管理</h2><div class="sub">登録済みのメールアドレスでログイン</div><label>メールアドレス</label><input id="fbEmail" type="email" autocomplete="username" placeholder="you@gmail.com"><label>パスワード</label><input id="fbPass" type="password" autocomplete="current-password" placeholder="パスワード"><button id="fbLoginBtn">ログイン</button><div id="fbResetWrap" style="text-align:center;margin-top:14px;"><a id="fbResetLink" href="#" style="color:#7fb0e0;font-size:12px;text-decoration:underline;cursor:pointer;">初めての方・パスワードを設定/再設定</a></div><div id="fbLoginErr"></div></div></div><script>(function(){
 function $(id){return document.getElementById(id);}
@@ -51,6 +54,9 @@ window.__auth.onAuthStateChanged(function(user){
   if(user && window.__ALLOWED.indexOf((user.email||"").toLowerCase())>-1){
     window.__user=user;
     window.__slot=window.__SLOT[(user.email||"").toLowerCase()];
+    window.__isOwner=((user.email||"").toLowerCase()===window.__OWNER);
+    document.documentElement.classList.toggle("ro",!window.__isOwner);
+    if(typeof window.__applyRole==="function") window.__applyRole();
     try{localStorage.setItem("banzai_currentUser",window.__slot);}catch(e){}
     if(ov) ov.style.display="none";
     if(typeof window.__startSync==="function") window.__startSync();
@@ -78,11 +84,12 @@ window.__auth.onAuthStateChanged(function(user){
 <div class="warnstripe"></div>
 <nav class="nav">
 <button class="nav-btn active" data-view="dash">ダッシュボード</button>
-<button class="nav-btn" data-view="entry">取引入力</button>
+<button class="nav-btn owner-only" data-view="entry">取引入力</button>
 <button class="nav-btn" data-view="list">取引履歴</button>
 <button class="nav-btn" data-view="project">案件別損益</button>
 <button class="nav-btn" data-view="settle">立替精算</button>
-</nav><div class="userbar"><span class="userbar-label">現在の利用者 ／ CURRENT USER：</span><select id="currentUser"><option value="A">kottan8676@gmail.com</option><option value="B">ayato.watanabe1220@gmail.com</option></select><span class="userbar-note">※自分の承認のみ操作できます</span></div>
+<button class="nav-btn" data-view="adv">仮払金</button>
+</nav><div class="userbar"><span class="userbar-label">現在の利用者 ／ CURRENT USER：</span><select id="currentUser"><option value="A">kottan8676@gmail.com</option><option value="B">ayato.watanabe1220@gmail.com</option></select><span class="userbar-note">※自分の承認のみ操作できます</span><span class="role-badge" id="roleBadge">確認中</span><span class="userbar-sp"></span><button type="button" class="ub-btn" id="pwChangeBtn">パスワード変更</button><button type="button" class="ub-btn" id="logoutBtn">ログアウト</button></div>
 <main class="main">
 <section class="view" id="view-dash">
 <div class="sec-title"><span>状況報告</span><em>STATUS REPORT</em></div>
@@ -91,9 +98,10 @@ window.__auth.onAuthStateChanged(function(user){
 <div class="kpi panel"><div class="kpi-label">総費用 ／ COST</div><div class="kpi-val cost" id="kCost">￥0</div></div>
 <div class="kpi panel hl"><div class="kpi-label">純利益 ／ NET PROFIT</div><div class="kpi-val" id="kNet">￥0</div></div>
 </div>
-<div class="kpi-grid two">
+<div class="kpi-grid">
 <div class="kpi panel"><div class="kpi-label">今週の利益 ／ THIS WEEK</div><div class="kpi-val sub" id="kWeek">￥0</div><div class="kpi-foot" id="kWeekRange">—</div></div>
 <div class="kpi panel"><div class="kpi-label">今月の利益 ／ THIS MONTH</div><div class="kpi-val sub" id="kMonth">￥0</div><div class="kpi-foot" id="kMonthRange">—</div></div>
+<div class="kpi panel"><div class="kpi-label">個人が預かり中 ／ HELD</div><div class="kpi-val sub held" id="kHeld">￥0</div><div class="kpi-foot" id="kHeldFoot">仮払金の残高合計</div></div>
 </div>
 <div class="sec-title sm"><span>月次推移</span><em>MONTHLY</em></div>
 <div class="panel chartwrap"><div class="chart" id="chart"></div></div>
@@ -118,11 +126,11 @@ window.__auth.onAuthStateChanged(function(user){
 </section>
 <section class="view" id="view-settle" hidden>
 <div class="sec-title"><span>立替精算</span><em>SETTLEMENT</em></div>
-<p class="hint">誰がいくら費用を立て替えたか（支払者別）を集計します。</p>
+<p class="hint">誰がいくら費用を立て替えたか（支払者別）を集計します。出どころを「会社の口座」「仮払金」にした費用は含みません。</p>
 <div class="panel"><div class="table" id="settleTable"></div></div>
 <div class="sec-title sm"><span>入金元別 売上</span><em>BY SOURCE</em></div>
 <div class="panel"><div class="table" id="sourceTable"></div></div>
-<div class="sec-title sm"><span>返済を記録</span><em>REPAYMENT</em></div>
+<div class="owner-only"><div class="sec-title sm"><span>返済を記録</span><em>REPAYMENT</em></div>
 <p class="hint">立て替えた費用を返済したとき、その内容（誰へ・いくら・原資）を記録します。残りの立替額に反映されます。</p>
 <div class="panel form">
 <div class="ent-row" style="grid-template-columns:1fr 1fr!important">
@@ -137,11 +145,37 @@ window.__auth.onAuthStateChanged(function(user){
 <button class="submit" id="repSubmit" style="margin-top:12px">返済を記録する ／ REPAY</button>
 <div class="form-msg" id="repMsg"></div>
 </div>
+</div>
 <div class="sec-title sm"><span>返済履歴</span><em>REPAYMENT LOG</em></div>
 <div class="panel"><div class="table" id="repayTable"></div></div>
 </section>
+<section class="view" id="view-adv" hidden>
+<div class="sec-title"><span>仮払金</span><em>ADVANCE / HELD FUNDS</em></div>
+<p class="hint">会社の口座から個人の口座へ一時的に移したお金の残高です。残高 ＝ 移した額 − 経費に使った額 − 会社に戻した額。プラスなら本人が会社のお金を預かっている状態、マイナスなら本人が多く出していて会社が返す状態です。</p>
+<div class="held-grid" id="heldGrid"></div>
+<div class="owner-only">
+<div class="sec-title sm"><span>お金の移動を記録</span><em>MOVE FUNDS</em></div>
+<div class="panel form" id="advForm">
+<div class="seg" id="advSeg"><button type="button" class="seg-btn active" data-adv="adv_out">会社 → 個人へ移す</button><button type="button" class="seg-btn" data-adv="adv_back">個人 → 会社へ戻す</button></div>
+<div class="ent-row" style="grid-template-columns:1fr 1fr!important">
+<div class="ent-f"><label>預かる人</label><input type="text" id="advPerson" lang="ja" inputmode="kana" autocapitalize="off" placeholder="例：東小太郎" list="advPersonList"><datalist id="advPersonList"><option value="東小太郎"><option value="渡邉斐都"></datalist></div>
+<div class="ent-f"><label>金額 (円)</label><input type="number" id="advAmount" placeholder="0" inputmode="numeric" min="1" step="1"></div>
+</div>
+<div class="ent-row" style="grid-template-columns:1fr 1fr!important">
+<div class="ent-f"><label>日付</label><input type="date" id="advDate"></div>
+<div class="ent-f"><label>メモ</label><input type="text" id="advMemo" lang="ja" inputmode="kana" autocapitalize="off" placeholder="例：二俣イベントの買い出し用"></div>
+</div>
+<button type="button" class="submit" id="advSubmit">記録する ／ COMMIT</button>
+<div class="form-msg" id="advMsg"></div>
+</div>
+<p class="hint" style="margin-top:12px">預かったお金で経費を払ったときは「取引入力」の費用の行で、お金の出どころを「預かっている会社のお金（仮払金）から」にしてください。この残高から自動で引かれます。</p>
+</div>
+<div class="sec-title sm"><span>仮払金の動き</span><em>LEDGER</em></div>
+<div class="filters"><select id="advFilter"><option value="all">全員</option></select></div>
+<div class="panel"><div class="table" id="advLedger"></div></div>
+</section>
 </main>
-<footer class="foot">藩才 管理会計システム ／ データはこのブラウザに保存されます</footer>
+<footer class="foot">藩才 管理会計システム ／ データはクラウド（Firebase）に保存されます</footer>
 </div>
 </div>
 <style>
@@ -263,6 +297,30 @@ window.__auth.onAuthStateChanged(function(user){
 @media(max-width:400px){.kpi-val{font-size:24px}.kpi-val.sub{font-size:22px}}
 .ent-block{border:1px solid var(--line);padding:14px;margin-top:4px}.ent-block-title{font-size:12px;letter-spacing:1px;margin-bottom:12px;color:var(--amber)}.ent-row{display:grid;grid-template-columns:1fr 1fr 1fr 32px;gap:8px;margin-bottom:10px;align-items:end}.ent-row .ent-f{display:flex;flex-direction:column;gap:4px}.ent-row .ent-f label{font-size:10px;color:var(--dim);letter-spacing:1px}.ent-row input,.ent-row select{background:#080a06;border:1px solid var(--line);color:var(--txt);font-family:var(--mono);font-size:14px;padding:9px 10px;outline:none;width:100%}.ent-row input:focus,.ent-row select:focus{border-color:var(--orange)}.ent-row .rm-row{background:none;border:1px solid var(--line);color:var(--red);cursor:pointer;height:38px;font-size:14px;line-height:1}.ent-row .rm-row:hover{background:var(--red);color:#000}.add-row{background:transparent;border:1px dashed var(--line);color:var(--amber);font-family:var(--mono);font-size:12px;padding:8px 14px;cursor:pointer;letter-spacing:1px;margin-top:2px}.add-row:hover{border-color:var(--amber);color:var(--txt)}.add-row.rev{color:var(--green)}.add-row.rev:hover{border-color:var(--green)}.ent-custom{margin-top:6px}@media(max-width:560px){.ent-row{grid-template-columns:1fr 1fr;}.ent-row .rm-row{grid-column:span 2;width:auto}}
 .t-row{grid-template-columns:78px 1fr auto 72px!important}.t-act{display:flex;gap:4px;justify-content:flex-end;align-items:center}.ap-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}.ap-btn{background:none;border:1px solid var(--line);color:var(--dim);cursor:pointer;font-family:var(--mono);font-size:10px;padding:3px 8px;letter-spacing:.5px}.ap-btn:hover{border-color:var(--amber);color:var(--txt)}.ap-btn.on{border-color:var(--green);color:var(--green)}.lock-tag{font-size:10px;color:var(--amber);border:1px solid var(--amber);padding:1px 6px;margin-left:8px;letter-spacing:1px}.t-row.locked{opacity:.92;background:rgba(255,176,0,.04)}.t-act .lk{color:var(--amber);font-size:14px}.ent-memo-f{grid-column:1 / -1}.ent-row{grid-template-columns:1fr 1fr 1fr 32px!important;grid-auto-rows:auto}
+html.ro .owner-only{display:none!important}
+.role-badge{font-size:10px;padding:2px 8px;border:1px solid var(--line);color:var(--dim);letter-spacing:1px}
+.role-badge.owner{border-color:var(--orange);color:var(--orange)}
+.role-badge.viewer{border-color:#48d8ff;color:#48d8ff}
+.userbar-sp{flex:1}
+.ub-btn{background:transparent;border:1px solid var(--line);color:var(--amber);font-family:var(--mono);font-size:11px;padding:6px 10px;cursor:pointer;letter-spacing:1px}
+.ub-btn:hover{border-color:var(--amber);color:var(--txt)}
+.ent-fund-f{grid-column:1 / -1}.ent-fund-f .fund-hint{font-size:10px;color:var(--dim);line-height:1.5}
+.kpi-val.held{color:#48d8ff}
+.tag.adv{color:#48d8ff;border-color:#48d8ff}.amt-adv{color:#48d8ff}
+.held-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
+.held{clip-path:none;border-top:2px solid #48d8ff;display:flex;flex-direction:column;gap:12px}
+.held::before{display:none}
+.held-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.held-name{font-family:var(--min);font-size:20px;letter-spacing:2px}
+.pill{font-size:10px;padding:3px 8px;letter-spacing:1px;border:1px solid}
+.pill.hold{color:#48d8ff;border-color:#48d8ff}.pill.owe{color:var(--amber);border-color:var(--amber)}.pill.zero{color:var(--dim);border-color:var(--line)}
+.held-bal{font-size:30px}
+.held-bal small{font-size:11px;color:var(--dim);display:block;margin-bottom:4px;letter-spacing:1px}
+.held-calc{display:grid;grid-template-columns:1fr auto;gap:4px 12px;font-size:12px;border-top:1px dashed var(--line);padding-top:10px}
+.held-calc dd{text-align:right}
+.ghost{background:transparent;border:1px solid #48d8ff;color:#48d8ff;padding:9px 12px;cursor:pointer;font-family:var(--mono);font-size:12px;letter-spacing:1px}
+.ghost:hover{background:#48d8ff;color:#000}
+.modal .field input{width:100%}
 .userbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 16px;background:#0d1209;border-bottom:1px solid var(--line);font-size:12px}.userbar-label{color:var(--amber);letter-spacing:1px}.userbar select{background:#080a06;border:1px solid var(--line);color:var(--txt);font-family:var(--mono);font-size:13px;padding:6px 10px;outline:none}.userbar select:focus{border-color:var(--orange)}.userbar-note{color:var(--dim);font-size:10px}.ap-btn:disabled{opacity:.35;cursor:not-allowed}.ap-btn:disabled:hover{border-color:var(--line);color:var(--dim)}
 </style>
 <script>
@@ -304,11 +362,23 @@ $("#csvBtn").onclick=exportCSV;
 var cu=$("#currentUser");if(cu){cu.value=currentUser;cu.onchange=function(){setCurrentUser(this.value);};}
 var rs=$('#repSubmit');if(rs)rs.onclick=submitRepay;
 var rd=$('#repDate');if(rd)rd.value=new Date().toISOString().slice(0,10);
+var ad=$('#advDate');if(ad)ad.value=new Date().toISOString().slice(0,10);
+document.querySelectorAll('#advSeg .seg-btn').forEach(function(b){b.onclick=function(){setAdvKind(b.dataset.adv);};});
+var asb=$('#advSubmit');if(asb)asb.onclick=submitAdv;
+var af=$('#advFilter');if(af)af.onchange=renderAdvLedger;
+var pcb=$('#pwChangeBtn');if(pcb)pcb.onclick=openPwModal;
+var lob=$('#logoutBtn');if(lob)lob.onclick=function(){if(confirm('ログアウトしますか？'))window.__auth.signOut();};
+applyRole();
 resetEntry();
 }
 var rowSeq=0;
 function payerOptions(sel){return ["東小太郎","渡邉旐都","会社"].map(function(p){return "<option"+(p===sel?" selected":"")+">"+esc(p)+"</option>";}).join("")+"<option value=\"__custom\""+(sel&&["東小太郎","渡邉旐都","会社"].indexOf(sel)<0?" selected":"")+">＋ 自由入力</option>";}
 function catOptions(type,sel){return CATS[type].map(function(c){return "<option"+(c===sel?" selected":"")+">"+esc(c)+"</option>";}).join("");}
+var FUNDS=[["personal","個人が立て替えた（あとで会社が返す）"],["company","会社の口座から直接"],["advance","預かっている会社のお金（仮払金）から"]];
+var FUND_LABEL={personal:"個人立替",company:"会社口座",advance:"仮払金から"};
+function fundOptions(sel){sel=sel||"personal";return FUNDS.map(function(f){return "<option value=\""+f[0]+"\""+(f[0]===sel?" selected":"")+">"+f[1]+"</option>";}).join("");}
+function canEdit(){return !!window.__isOwner;}
+function denyMsg(){return "編集できるのは管理者（kottan8676）だけです";}
 function catListId(type){return type==="rev"?"revCatList":"costCatList";}
 function addRow(type,vals){vals=vals||{};var wrap=$(type==="rev"?"#revRows":"#costRows");var id="r"+(rowSeq++);var div=document.createElement("div");div.className="ent-row";div.dataset.rid=id;div.dataset.type=type;
 var payerLabel=type==="rev"?"入金元":"支払者";
@@ -317,7 +387,8 @@ div.innerHTML="<div class=\"ent-f\"><label>金額 (円)</label><input type=\"num
 +"<div class=\"ent-f\"><label>区分（自由入力）</label><input type=\"text\" class=\"r-cat\" lang=\"ja\" inputmode=\"kana\" autocapitalize=\"off\" placeholder=\""+(type==="rev"?"例：個人会員":"例：仕入")+"\" value=\""+esc(vals.cat||"")+"\"></div>"
 +"<div class=\"ent-f\"><label>"+payerLabel+"（自由入力）</label><input type=\"text\" class=\"r-payer\" lang=\"ja\" inputmode=\"kana\" autocapitalize=\"off\" placeholder=\"名称を入力\" value=\""+esc(defPayer)+"\"></div>"
 +"<button type=\"button\" class=\"rm-row\" title=\"削除\">x</button>"
-+"<div class=\"ent-f ent-memo-f\"><label>詳細メモ（何に使ったか／どんな売上か）</label><input type=\"text\" class=\"r-memo\" lang=\"ja\" inputmode=\"kana\" autocapitalize=\"off\" placeholder=\""+(type==="rev"?"例：5/30イベント 当日券売上":"例：渋谷→新宿 タクシー代")+"\" value=\""+esc(vals.memo||"")+"\"></div>";
++"<div class=\"ent-f ent-memo-f\"><label>詳細メモ（何に使ったか／どんな売上か）</label><input type=\"text\" class=\"r-memo\" lang=\"ja\" inputmode=\"kana\" autocapitalize=\"off\" placeholder=\""+(type==="rev"?"例：5/30イベント 当日券売上":"例：渋谷→新宿 タクシー代")+"\" value=\""+esc(vals.memo||"")+"\"></div>"
++(type==="cost"?"<div class=\"ent-f ent-fund-f\"><label>お金の出どころ</label><select class=\"r-fund\">"+fundOptions(vals.fund)+"</select><span class=\"fund-hint\">「仮払金から」にすると、支払者の預かり残高から引かれます</span></div>":"");
 wrap.appendChild(div);
 div.querySelector(".rm-row").onclick=function(){div.parentNode.removeChild(div);};
 return div;}
@@ -327,6 +398,7 @@ function fillCats(){var sel=$('#fCat');sel.innerHTML='';CATS[curType].forEach(fu
 function updateProjectList(){var dl=$('#projectList');if(!dl)return;var projects=data.map(function(t){return t.project;}).filter(Boolean).filter(function(v,i,a){return a.indexOf(v)===i;});dl.innerHTML=projects.map(function(p){return '<option value="'+esc(p)+'">';}).join('');}
 
 function submit(){
+if(!canEdit()){flash(denyMsg(),true);return;}
 var date=$("#fDate").value||new Date().toISOString().slice(0,10);
 var project=($("#fProject").value||"").trim();
 var rows=Array.prototype.slice.call(document.querySelectorAll(".ent-row"));
@@ -341,7 +413,9 @@ var type=div.dataset.type;
 var payer=(div.querySelector(".r-payer").value||"").trim();if(!payer)payer="未設定";
 var cat=(div.querySelector(".r-cat").value||"").trim();if(!cat)cat="その他";
 var memo=(div.querySelector(".r-memo").value||"").trim();
-recs.push({id:(Date.now()+""+Math.floor(Math.random()*99999)),type:type,date:date,amount:Math.round(amt),cat:cat,payer:payer,project:project,memo:memo,approvals:{}});
+var rec={id:(Date.now()+""+Math.floor(Math.random()*99999)),type:type,date:date,amount:Math.round(amt),cat:cat,payer:payer,project:project,memo:memo,approvals:{}};
+if(type==="cost"){var fe=div.querySelector(".r-fund");if(fe)rec.fund=fe.value;}
+recs.push(rec);
 });
 if(err){flash(err,true);return;}
 if(!hadInput||!recs.length){flash("金額を1つ以上入力してください",true);return;}
@@ -352,7 +426,7 @@ save();flash(recs.length+"件 記録しました ／ COMMITTED",false);renderAll
 
 function flash(msg,err){var el=$('#formMsg');el.textContent=msg;el.style.color=err?'var(--red)':'var(--green)';setTimeout(function(){if(el.textContent===msg)el.textContent='';},2500);}
 
-function del(id){var t=data.filter(function(x){return x.id===id;})[0];if(t&&isLocked(t)){flash("ロック中の取引は削除できません",true);return;}if(!confirm("この記録を削除しますか？"))return;data=data.filter(function(t){return t.id!==id;});save();renderAll();}
+function del(id){if(!canEdit()){flash(denyMsg(),true);return;}var t=data.filter(function(x){return x.id===id;})[0];if(t&&isLocked(t)){flash("ロック中の取引は削除できません",true);return;}if(!confirm("この記録を削除しますか？"))return;data=data.filter(function(t){return t.id!==id;});save();renderAll();}
 window.__del=del;window.__refresh=function(){load().then(renderAll);};
 var APPROVERS=[{key:"A",label:"kottan8676@gmail.com"},{key:"B",label:"ayato.watanabe1220@gmail.com"}];
 var currentUser=(function(){try{return localStorage.getItem("banzai_currentUser")||"A";}catch(e){return "A";}})();
@@ -363,6 +437,7 @@ window.__approve=toggleApprove;
 
 
 function startEdit(id){
+if(!canEdit()){flash(denyMsg(),true);return;}
 var t=data.filter(function(x){return x.id===id;})[0];if(!t)return;
 if(isLocked(t)){flash("ロック中の取引は編集できません",true);return;}
 document.querySelectorAll(".nav-btn").forEach(function(x){x.classList.remove("active");});
@@ -371,15 +446,16 @@ document.querySelectorAll(".view").forEach(function(v){v.hidden=true;});
 $("#view-entry").hidden=false;
 rowSeq=0;$("#revRows").innerHTML="";$("#costRows").innerHTML="";
 $("#fDate").value=t.date;$("#fProject").value=t.project||"";
-addRow(t.type,{amount:t.amount,cat:t.cat,payer:t.payer,memo:t.memo});
+addRow(t.type,{amount:t.amount,cat:t.cat,payer:t.payer,memo:t.memo,fund:t.fund});
 $("#addRev").style.display="none";$("#addCost").style.display="none";
 editId=id;$("#submitBtn").textContent="更新する ／ UPDATE";window.scrollTo(0,0);
 }
 window.__edit=startEdit;
 
 function exportCSV(){
-var hdr=["日付","種別","金額","区分","入金元/支払者","案件","メモ"].join(",");
-var rows=data.map(function(t){return [t.date,t.type==="rev"?"売上":(t.type==="repay"?"返済":"費用"),t.amount,t.cat,t.payer,t.project,t.memo].map(function(v){return '"'+String(v).replace(/"/g,'""')+'"';}).join(",");});
+var TL={rev:"売上",cost:"費用",repay:"返済",adv_out:"仮払金（会社→個人）",adv_back:"仮払金（個人→会社）"};
+var hdr=["日付","種別","金額","区分","入金元/支払者","案件","メモ","出どころ"].join(",");
+var rows=data.map(function(t){return [t.date,TL[t.type]||t.type,t.amount,t.cat,t.payer,t.project,t.memo,t.type==="cost"?(FUND_LABEL[t.fund]||"個人立替"):""].map(function(v){return '"'+String(v).replace(/"/g,'""')+'"';}).join(",");});
 var nl=String.fromCharCode(10);
 var bom=String.fromCharCode(65279);
 var csv=bom+hdr+nl+rows.join(nl);
@@ -389,7 +465,7 @@ a.download="banzai_"+new Date().toISOString().slice(0,10)+".csv";
 a.click();
 }
 
-function renderAll(){renderDash();renderList();renderProject();renderSettle();renderRepay();updateRepPayerList();$('#recCount').textContent='REC '+data.length;}
+function renderAll(){renderDash();renderList();renderProject();renderSettle();renderRepay();updateRepPayerList();renderAdv();renderHeldKpi();$('#recCount').textContent='REC '+data.length;}
 function totals(arr){var rev=0,cost=0;arr.forEach(function(t){if(t.type==='rev')rev+=t.amount;else if(t.type==='cost')cost+=t.amount;});return{rev:rev,cost:cost,net:rev-cost};}
 
 function renderDash(){
@@ -445,8 +521,8 @@ var locked=isLocked(t);
 var ap=t.approvals||{};
 var apBtns=APPROVERS.map(function(p){var on=!!ap[p.key];var dis=p.key!==window.__slot;return "<button class=\"ap-btn"+(on?" on":"")+"\" data-id=\""+t.id+"\" data-act=\"ap\" data-key=\""+p.key+"\" title=\""+p.label+"\""+(dis?" disabled":"")+">"+(on?"☑":"☐")+" "+esc(p.label.split("@")[0])+"</button>";}).join("");
 var lockTag=locked?"<span class=\"lock-tag\">🔒 ロック済</span>":"";
-var editBtns=locked?"<span class=\"lk\">🔒</span>":("<button class=\"edt\" data-id=\""+t.id+"\" data-act=\"edit\" title=\"編集\">e</button><button class=\"del\" data-id=\""+t.id+"\" data-act=\"del\" title=\"削除\">x</button>");
-return "<div class=\"t-row"+(locked?" locked":"")+"\"><div class=\"t-date\">"+t.date+"</div><div class=\"t-main\"><b><span class=\"tag "+t.type+"\">"+(t.type==="rev"?"売上":"費用")+"</span>"+esc(t.project||t.cat)+lockTag+"</b><span class=\"t-sub\">"+esc(t.cat)+" / "+esc(t.payer)+(t.memo?" / "+esc(t.memo):"")+"</span><span class=\"ap-row\">"+apBtns+"</span></div><div class=\"t-amt "+(t.type==="rev"?"amt-rev":"amt-cost")+"\">"+(t.type==="rev"?"+":"-")+yen(t.amount)+"</div><div class=\"t-act\">"+editBtns+"</div></div>";
+var editBtns=locked?"<span class=\"lk\">🔒</span>":!canEdit()?"":("<button class=\"edt\" data-id=\""+t.id+"\" data-act=\"edit\" title=\"編集\">e</button><button class=\"del\" data-id=\""+t.id+"\" data-act=\"del\" title=\"削除\">x</button>");
+return "<div class=\"t-row"+(locked?" locked":"")+"\"><div class=\"t-date\">"+t.date+"</div><div class=\"t-main\"><b><span class=\"tag "+t.type+"\">"+(t.type==="rev"?"売上":"費用")+"</span>"+esc(t.project||t.cat)+lockTag+"</b><span class=\"t-sub\">"+esc(t.cat)+" / "+esc(t.payer)+(t.type==="cost"&&t.fund?" / "+FUND_LABEL[t.fund]:"")+(t.memo?" / "+esc(t.memo):"")+"</span><span class=\"ap-row\">"+apBtns+"</span></div><div class=\"t-amt "+(t.type==="rev"?"amt-rev":"amt-cost")+"\">"+(t.type==="rev"?"+":"-")+yen(t.amount)+"</div><div class=\"t-act\">"+editBtns+"</div></div>";
 }).join("");
 el.onclick=function(e){var btn=e.target.closest("button[data-act]");if(!btn)return;var id=btn.dataset.id;var act=btn.dataset.act;if(act==="edit")startEdit(id);else if(act==="del")del(id);else if(act==="ap")toggleApprove(id,btn.dataset.key);};
 }
@@ -476,7 +552,7 @@ return '<div class="p-group"><div class="p-group-header"><div class="p-group-tit
 }).join('');
 }
 
-function updateRepPayerList(){var dl=$('#repPayerList');if(!dl)return;var payers={};data.filter(function(t){return t.type==='cost';}).forEach(function(t){payers[t.payer]=true;});dl.innerHTML=Object.keys(payers).map(function(p){return '<option value="'+esc(p)+'">';}).join('');}
+function updateRepPayerList(){var dl=$('#repPayerList');if(!dl)return;var payers={};data.filter(function(t){return t.type==='cost'&&t.fund!=='company'&&t.fund!=='advance';}).forEach(function(t){payers[t.payer]=true;});dl.innerHTML=Object.keys(payers).map(function(p){return '<option value="'+esc(p)+'">';}).join('');}
 function submitRepay(){
 var payer=($('#repPayer').value||'').trim();
 var raw=$('#repAmount').value;
@@ -485,6 +561,7 @@ var date=$('#repDate').value||new Date().toISOString().slice(0,10);
 var memo=($('#repMemo').value||'').trim();
 var el=$('#repMsg');
 function rflash(m,err){el.textContent=m;el.style.color=err?'var(--red)':'var(--green)';setTimeout(function(){if(el.textContent===m)el.textContent='';},2500);}
+if(!canEdit()){rflash(denyMsg(),true);return;}
 if(!payer){rflash('返済先（立替者）を入力してください',true);return;}
 if(raw===''||raw==null){rflash('返済額を入力してください',true);return;}
 var amt=parseFloat(raw);
@@ -496,11 +573,11 @@ function renderRepay(){
 var el=$('#repayTable');if(!el)return;
 var arr=data.filter(function(t){return t.type==='repay';}).sort(function(a,b){return b.date.localeCompare(a.date)||b.id.localeCompare(a.id);});
 if(!arr.length){el.innerHTML='<div class="empty">返済記録なし ／ NO DATA</div>';return;}
-el.innerHTML=arr.map(function(t){return '<div class="t-row" style="grid-template-columns:78px 1fr auto 34px"><div class="t-date">'+t.date+'</div><div class="t-main"><b>'+esc(t.payer)+' へ返済</b><span class="t-sub">'+esc(t.cat||'原資不明')+(t.memo?' / '+esc(t.memo):'')+'</span></div><div class="t-amt amt-rev">'+yen(t.amount)+'</div><div class="t-act"><button class="del" data-id="'+t.id+'" data-act="delrep" title="削除">x</button></div></div>';}).join('');
-el.onclick=function(e){var btn=e.target.closest('button[data-act="delrep"]');if(!btn)return;var id=btn.dataset.id;if(!confirm('この返済記録を削除しますか？'))return;data=data.filter(function(x){return x.id!==id;});save();renderAll();};
+el.innerHTML=arr.map(function(t){return '<div class="t-row" style="grid-template-columns:78px 1fr auto 34px"><div class="t-date">'+t.date+'</div><div class="t-main"><b>'+esc(t.payer)+' へ返済</b><span class="t-sub">'+esc(t.cat||'原資不明')+(t.memo?' / '+esc(t.memo):'')+'</span></div><div class="t-amt amt-rev">'+yen(t.amount)+'</div><div class="t-act">'+(canEdit()?'<button class="del" data-id="'+t.id+'" data-act="delrep" title="削除">x</button>':'')+'</div></div>';}).join('');
+el.onclick=function(e){var btn=e.target.closest('button[data-act="delrep"]');if(!btn)return;if(!canEdit())return;var id=btn.dataset.id;if(!confirm('この返済記録を削除しますか？'))return;data=data.filter(function(x){return x.id!==id;});save();renderAll();};
 }
 function renderSettle(){
-var cost={};data.filter(function(t){return t.type==='cost';}).forEach(function(t){cost[t.payer]=(cost[t.payer]||0)+t.amount;});
+var cost={};data.filter(function(t){return t.type==='cost'&&t.fund!=='company'&&t.fund!=='advance';}).forEach(function(t){cost[t.payer]=(cost[t.payer]||0)+t.amount;});
 var repaid={};data.filter(function(t){return t.type==='repay';}).forEach(function(t){repaid[t.payer]=(repaid[t.payer]||0)+t.amount;});
 var ce=$('#settleTable');
 var names=Object.keys(cost);Object.keys(repaid).forEach(function(k){if(names.indexOf(k)<0)names.push(k);});
@@ -513,6 +590,109 @@ var re=$('#sourceTable');var rr=Object.keys(rev).map(function(k){return[k,rev[k]
 if(!rr.length){re.innerHTML='<div class="empty">売上記録なし</div>';return;}
 var rtot=rr.reduce(function(s,v){return s+v[1];},0);
 re.innerHTML='<div class="p-row head" style="grid-template-columns:1fr minmax(72px,auto) minmax(72px,auto)"><div class="name">入金元 ／ SOURCE</div><div class="num">売上</div><div class="num">割合</div></div>'+rr.map(function(kv){return '<div class="p-row" style="grid-template-columns:1fr minmax(72px,auto) minmax(72px,auto)"><div class="name">'+esc(kv[0])+'</div><div class="num amt-rev">'+yen(kv[1])+'</div><div class="num" style="color:var(--dim)">'+Math.round(kv[1]/rtot*100)+'%</div></div>';}).join('');
+}
+
+/* ===== 権限 ===== */
+function applyRole(){
+var b=$('#roleBadge');if(b){var own=canEdit();b.textContent=own?'編集モード':'閲覧モード';b.className='role-badge '+(own?'owner':'viewer');}
+if(!canEdit()){var act=document.querySelector('.nav-btn.active');if(act&&act.dataset.view==='entry'){var d=document.querySelector('.nav-btn[data-view="dash"]');if(d)d.click();}}
+renderAll();
+}
+window.__applyRole=function(){try{applyRole();}catch(e){}};
+
+/* ===== 仮払金 ===== */
+var advKind='adv_out';
+function setAdvKind(k){advKind=k;document.querySelectorAll('#advSeg .seg-btn').forEach(function(x){x.classList.toggle('active',x.dataset.adv===k);});}
+// 残高 = 会社から移した額 − 仮払金から払った費用 − 会社に戻した額
+function advBalances(){
+var map={};function g(p){return map[p]||(map[p]={out:0,spent:0,back:0});}
+data.forEach(function(t){
+if(t.type==='adv_out')g(t.payer).out+=t.amount;
+else if(t.type==='adv_back')g(t.payer).back+=t.amount;
+else if(t.type==='cost'&&t.fund==='advance')g(t.payer).spent+=t.amount;
+});
+Object.keys(map).forEach(function(k){map[k].bal=map[k].out-map[k].spent-map[k].back;});
+return map;
+}
+window.__advBalances=advBalances;
+function advFlash(m,err){var el=$('#advMsg');if(!el)return;el.textContent=m;el.style.color=err?'var(--red)':'var(--green)';setTimeout(function(){if(el.textContent===m)el.textContent='';},3000);}
+function submitAdv(){
+if(!canEdit()){advFlash(denyMsg(),true);return;}
+var p=($('#advPerson').value||'').trim();var raw=$('#advAmount').value;
+var date=$('#advDate').value||new Date().toISOString().slice(0,10);var memo=($('#advMemo').value||'').trim();
+if(!p){advFlash('預かる人を入力してください',true);return;}
+var amt=parseFloat(raw);if(!amt||amt<=0||!Number.isInteger(amt)){advFlash('金額は正の整数で入力してください',true);return;}
+data.push({id:(Date.now()+''+Math.floor(Math.random()*99999)),type:advKind,date:date,amount:Math.round(amt),cat:'仮払金',payer:p,project:'',memo:memo,approvals:{}});
+save();renderAll();
+$('#advAmount').value='';$('#advMemo').value='';
+var b=advBalances()[p];advFlash('記録しました。'+p+'さんの預かり残高は '+yen(b?b.bal:0),false);
+}
+function renderHeldKpi(){
+var el=$('#kHeld');if(!el)return;
+var bals=advBalances();var pos=Object.keys(bals).filter(function(k){return bals[k].bal>0;});
+el.textContent=yen(pos.reduce(function(s,k){return s+bals[k].bal;},0));
+var f=$('#kHeldFoot');if(f)f.textContent=pos.length?pos.map(function(k){return k+' '+yen(bals[k].bal);}).join(' ／ '):'預かり中の人はいません';
+}
+function renderAdv(){
+var g=$('#heldGrid');if(!g)return;
+var bals=advBalances();var names=Object.keys(bals).sort(function(a,b){return bals[b].bal-bals[a].bal;});
+if(!names.length){g.innerHTML='<div class="panel held"><div class="empty">まだ仮払金の記録はありません</div></div>';}
+else{g.innerHTML=names.map(function(n){var v=bals[n];
+var st=v.bal>0?['hold','預かり中','会社に戻す額','#48d8ff']:v.bal<0?['owe','会社が返す','本人が多く出した額','var(--amber)']:['zero','精算済み','残高','var(--dim)'];
+return '<div class="panel held"><div class="held-head"><span class="held-name">'+esc(n)+'</span><span class="pill '+st[0]+'">'+st[1]+'</span></div>'
++'<div class="held-bal" style="color:'+st[3]+'"><small>'+st[2]+'</small>'+yen(Math.abs(v.bal))+'</div>'
++'<dl class="held-calc"><dt>会社から移した額</dt><dd>'+yen(v.out)+'</dd><dt>経費に使った額</dt><dd>&#x2212;'+yen(v.spent)+'</dd><dt>会社に戻した額</dt><dd>&#x2212;'+yen(v.back)+'</dd></dl>'
++(canEdit()&&v.bal>0?'<button type="button" class="ghost" data-ret="'+esc(n)+'" data-amt="'+v.bal+'">残高 '+yen(v.bal)+' を戻したことにする</button>':'')
++'</div>';}).join('');}
+g.onclick=function(e){var b=e.target.closest('button[data-ret]');if(!b||!canEdit())return;setAdvKind('adv_back');$('#advPerson').value=b.dataset.ret;$('#advAmount').value=b.dataset.amt;$('#advDate').value=new Date().toISOString().slice(0,10);$('#advMemo').value='残高を会社口座へ返金';$('#advForm').scrollIntoView({behavior:'smooth',block:'start'});};
+var f=$('#advFilter');if(f){var cur=f.value;f.innerHTML='<option value="all">全員</option>'+names.map(function(n){return '<option value="'+esc(n)+'">'+esc(n)+'</option>';}).join('');f.value=names.indexOf(cur)>-1?cur:'all';}
+renderAdvLedger();
+}
+function renderAdvLedger(){
+var el=$('#advLedger');if(!el)return;var who=($('#advFilter')||{}).value||'all';
+var arr=data.filter(function(t){return t.type==='adv_out'||t.type==='adv_back'||(t.type==='cost'&&t.fund==='advance');});
+if(who!=='all')arr=arr.filter(function(t){return t.payer===who;});
+arr.sort(function(a,b){return b.date.localeCompare(a.date)||String(b.id).localeCompare(String(a.id));});
+if(!arr.length){el.innerHTML='<div class="empty">記録なし ／ NO DATA</div>';return;}
+el.innerHTML=arr.map(function(t){
+var lab=t.type==='adv_out'?['adv','会社→個人',esc(t.payer)+'さんへ移した','→']:t.type==='adv_back'?['adv','個人→会社',esc(t.payer)+'さんから戻った','←']:['cost','費用',esc(t.project||t.cat),'−'];
+var del=(canEdit()&&t.type!=='cost')?'<button class="del" data-id="'+t.id+'" data-act="deladv" title="削除">x</button>':'';
+return '<div class="t-row"><div class="t-date">'+t.date+'</div><div class="t-main"><b><span class="tag '+lab[0]+'">'+lab[1]+'</span>'+lab[2]+'</b><span class="t-sub">'+esc(t.payer)+(t.memo?' / '+esc(t.memo):'')+(t.type==='cost'?' / '+esc(t.cat):'')+'</span></div><div class="t-amt '+(t.type==='cost'?'amt-cost':'amt-adv')+'">'+lab[3]+yen(t.amount)+'</div><div class="t-act">'+del+'</div></div>';
+}).join('');
+el.onclick=function(e){var b=e.target.closest('button[data-act="deladv"]');if(!b||!canEdit())return;if(!confirm('この仮払金の記録を削除しますか？'))return;var id=b.dataset.id;data=data.filter(function(x){return x.id!==id;});save();renderAll();};
+}
+
+/* ===== パスワード変更 ===== */
+function openPwModal(){
+var u=window.__user;if(!u)return;
+var ov=document.createElement('div');ov.className='modal-overlay';
+ov.innerHTML='<div class="modal"><div class="modal-title">パスワード変更</div>'
++'<div style="font-size:11px;color:var(--dim)">'+esc(u.email)+' のパスワードを変更します</div>'
++'<div class="field"><label>今のパスワード</label><input type="password" id="pwOld" autocomplete="current-password"></div>'
++'<div class="field"><label>新しいパスワード（8文字以上）</label><input type="password" id="pwNew1" autocomplete="new-password"></div>'
++'<div class="field"><label>新しいパスワード（確認）</label><input type="password" id="pwNew2" autocomplete="new-password"></div>'
++'<div class="form-msg" id="pwMsg"></div>'
++'<div class="modal-btns"><button type="button" id="pwCancel">キャンセル</button><button type="button" class="ok" id="pwOk">変更する</button></div></div>';
+document.body.appendChild(ov);
+var msg=ov.querySelector('#pwMsg');function m(t,err){msg.textContent=t;msg.style.color=err?'var(--red)':'var(--green)';}
+ov.querySelector('#pwCancel').onclick=function(){ov.remove();};
+ov.querySelector('#pwOk').onclick=function(){
+var o=ov.querySelector('#pwOld').value,a=ov.querySelector('#pwNew1').value,b=ov.querySelector('#pwNew2').value;
+if(!o||!a||!b){m('3つの欄をすべて入力してください',true);return;}
+if(a.length<8){m('新しいパスワードは8文字以上にしてください',true);return;}
+if(a!==b){m('新しいパスワードが2回とも一致しません',true);return;}
+if(a===o){m('今と同じパスワードです',true);return;}
+var btn=ov.querySelector('#pwOk');btn.disabled=true;m('変更中…',false);
+var cred=firebase.auth.EmailAuthProvider.credential(u.email,o);
+u.reauthenticateWithCredential(cred).then(function(){return u.updatePassword(a);}).then(function(){
+m('変更しました。次回から新しいパスワードでログインしてください',false);setTimeout(function(){ov.remove();},1800);
+}).catch(function(err){btn.disabled=false;var c=(err&&err.code)||'';
+if(c.indexOf('wrong-password')>-1||c.indexOf('invalid-credential')>-1)m('今のパスワードが違います',true);
+else if(c.indexOf('weak-password')>-1)m('新しいパスワードが弱すぎます',true);
+else if(c.indexOf('too-many-requests')>-1)m('試行回数が多すぎます。しばらくしてからお試しください',true);
+else m('変更できませんでした：'+c,true);});
+};
+setTimeout(function(){var i=ov.querySelector('#pwOld');if(i)i.focus();},30);
 }
 
 function esc(s){return(s+'').replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
